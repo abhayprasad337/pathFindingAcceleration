@@ -6,6 +6,9 @@ ABSTRACT: This code is used to find the shortest path between two points
 
 #include <iostream>
 #include <string>
+#include <stdlib.h>
+#include <cstddef>
+
 using namespace std;
 
 
@@ -15,6 +18,150 @@ int removeElement(int *arrayList, int pos, int numElements);
 
 int LENGTH = 6;
 int WIDTH = 6;
+
+int startX = 3;
+int startY = 3;
+
+int endX = 3;
+int endY = 5;
+
+typedef struct genPath{
+    int pXval;
+    int pYval;
+    int x_neighbors[8];
+    int y_neighbors[8];
+    int dists[8];
+    int numNeighbors;
+    struct genPath * next;
+}genPath;
+
+typedef struct backTrack{
+    int x;
+    int y;
+    int index;
+    backTrack * next;
+}backTrack_t;
+
+int listLength (genPath* head){
+    genPath * current = head;
+    int count =0;
+    while (current != NULL){
+        count ++;
+        //cout << "Monitor: " << current->pXval << "," << current->pYval << endl;
+        current = current -> next;
+    }
+    return count;
+}
+
+int listLengthbt (backTrack_t* head){
+    backTrack_t * current = head;
+    int count =0;
+    while (current != NULL){
+        count ++;
+        //cout << "Monitor: " << current->x << "," << current->y << " -> "<< current->index << endl;
+        current = current -> next;
+    }
+    return count;
+}
+
+int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX, int * neighborY, int *dist, int neighborCount){
+    genPath* newNode;
+    newNode = (genPath*) malloc(sizeof(genPath));
+
+    if (!newNode){
+        cout << "Memory error!" << endl;
+        return 0;
+    }
+
+    newNode->next = *head;
+    newNode->pXval = xVal;
+    newNode->pYval = yVal;
+    newNode->numNeighbors = neighborCount;
+    memcpy(newNode->dists,dist,sizeof(int)*neighborCount);
+    memcpy(newNode->x_neighbors,neighborX,sizeof(int)*neighborCount);
+    memcpy(newNode->y_neighbors,neighborY,sizeof(int)*neighborCount);
+    *head = newNode;
+    return 1;
+}
+
+void reverseLinkedList (genPath** head){
+    genPath* currentNode = *head;
+    genPath* nextNode = NULL;
+    genPath* prevNode = NULL;
+
+    while(currentNode!=NULL){
+		nextNode = currentNode->next;
+		currentNode->next = prevNode;
+		prevNode = currentNode;
+		currentNode = nextNode;
+	}
+	*head = prevNode;
+    return;
+}
+
+void reverseLinkedListbt (backTrack_t** head){
+    backTrack_t* currentNode = *head;
+    backTrack_t* nextNode = NULL;
+    backTrack_t* prevNode = NULL;
+
+    while(currentNode!=NULL){
+		nextNode = currentNode->next;
+		currentNode->next = prevNode;
+		prevNode = currentNode;
+		currentNode = nextNode;
+	}
+	*head = prevNode;
+    return;
+}
+
+void printGraph(int * graph,int xlim, int ylim){
+    for (int i=0;i<xlim;i++){
+        for (int j=0;j<ylim;j++){
+            cout << *((graph+i*xlim) + j) << " ";
+        }
+        cout << endl;
+    }
+}
+
+int findIndex (backTrack_t* headBT,int x, int y){
+    while(headBT!=NULL){
+        if(headBT->x==x){
+                if (headBT->y==y){
+                        return headBT->index;
+                }
+        }
+    }
+    return 0;
+}
+
+void indexXY(genPath * head,backTrack_t **headBacktrack){
+    int incrementer = 1;
+    while(head->next!=NULL){
+            //if(**headBacktrack->next==NULL)
+//                    headBacktrack->x = head->pXval;
+//                    headBacktrack->y = head->pYval;
+//                    headBacktrack->index = incrementer++;
+//            } else {
+                    backTrack_t* newNode;
+                    newNode = (backTrack_t*) malloc(sizeof(backTrack_t));
+                    newNode->next = *headBacktrack;
+                    newNode->x = head->pXval;
+                    newNode->y = head->pYval;
+                    newNode->index = incrementer++;
+                    *headBacktrack = newNode;
+
+//            }
+            head = head->next;
+    }
+    backTrack_t* newNode;
+    newNode = (backTrack_t*) malloc(sizeof(backTrack_t));
+    newNode->next = *headBacktrack;
+    newNode->x = head->pXval;
+    newNode->y = head->pYval;
+    newNode->index = incrementer++;
+    *headBacktrack = newNode;
+}
+
 int main()
 {
     int Ncount;
@@ -29,6 +176,10 @@ int main()
     int openListsY[100];
     int openListDists[100];
 
+    int tmpListX[100];
+    int tmpListY[100];
+    int tmpListDists[100];
+
     int *closedListX = &closedListsX[0];
     int *closedListY = &closedListsY[0];
     int *closedListDist = &closedListDists[0];
@@ -37,67 +188,252 @@ int main()
     int *neighborY = &neighborsY[0];
     int *dist = &dists[0];
 
-    int startX = 3;
-    int startY = 3;
-
-    int endX = 6;
-    int endY = 6;
-
-    int pathFound = 1;
+    int pathFound = 0;
     int openListCnt = 0;
     int closedListCnt = 0;
+    int mopenListCnt=0;
+    int terminate = 0; /// This is used to indicate that the destination was found.
+    int iterations =0; /// This is used to monitor the number of iterations required to reach destination.
+    int tmpListCnt;
 
-    Ncount = findNeighbor(startX, startY, 0, neighborX, neighborY, dist , LENGTH, WIDTH, closedListX, closedListY, closedListCnt);
+    /** Initialize genPath linkedList **/
+    genPath *head = (genPath*) malloc(sizeof(genPath));
+    if (head == NULL){
+        return 1;
+    }
 
-    /// Add start node to closed list
+    /* Add start node to closed list */
     closedListsX[0] = startX;
     closedListsY[0] = startY;
     closedListCnt++;
 
-    for (int i = 0;i<Ncount;i++){
-        cout << neighborX[i] << "," << neighborY[i] << "-->" << dist[i] << endl;
-    }
+    /** Find neighbors to start pathfinding **/
+    /**
+     * This is done to load the initialize the loop for
+     * building the path. This is the nature of the algorithm
+     * that has been designed. A better algorithm for this
+     * should be implemented which does not handle such cases
+     * this bad.
+    */
 
+    Ncount = findNeighbor(startX, startY, 0, neighborX, neighborY, dist , LENGTH, WIDTH, closedListX, closedListY, closedListCnt);
 
-    /// Add first neighbors to closed list
+    /// Manually insert into linkedlist for startnode
+    head->next = NULL;
+    head->pXval = startX;
+    head->pYval = startY;
+    head->numNeighbors = Ncount;
+    memcpy(head->dists,dist,sizeof(int)*Ncount);
+    memcpy(head->x_neighbors,neighborX,sizeof(int)*Ncount);
+    memcpy(head->y_neighbors,neighborY,sizeof(int)*Ncount);
+
+    /** Add the present neighbors of start node to closed list **/
+    /** This is due to the nature of the algorithm. A much cleaner
+     *  code could be written if the algorithm can be modified.
+    */
     for (int addToClosedList = 0; addToClosedList < Ncount; addToClosedList++){
-         closedListsX[closedListCnt] = neighborsX[addToClosedList];
-         closedListsY[closedListCnt] = neighborsY[addToClosedList];
-         closedListDists[closedListCnt++] = dists[addToClosedList];
+        closedListsX[closedListCnt] = neighborsX[addToClosedList];
+        closedListsY[closedListCnt] = neighborsY[addToClosedList];
+        closedListDists[closedListCnt++] = dists[addToClosedList];
     }
 
+    /** Add the present neighbors of start node to open list **/
+    /** This is due to the nature of the algorithm. A much cleaner
+     *  code could be written if the algorithm can be modified.
+    */
+    for (int addToOpenList = 0; addToOpenList < Ncount; addToOpenList++){
+        openListsX[openListCnt] = neighborsX[addToOpenList];
+        openListsY[openListCnt] = neighborsY[addToOpenList];
+        openListDists[openListCnt++] = dist[addToOpenList];
+    }
 
-    /// Clear neighbors before finding new list of neighbors
-    /*  This has been taken care as Ncount is returned from the
-        findNeighbors function, care must be taken at the programmer's
-        end to evaluate the neighbor array only till the value of Ncount */
+    /**
+      * Find unique elements on the openList.
+      * Is this useful at all??? Clean up if necessary
+      * - According to the review, this is done to sort of
+      *   initialize mopenListcnt/
+      */
+    mopenListCnt = findUnique(&openListsX[0],&openListsY[0],&openListDists[0],openListCnt);
 
-    /// Add neighbors to openList
-    for (int evaluateOpenList = 1; evaluateOpenList < closedListCnt ;evaluateOpenList++){
-        Ncount = findNeighbor(closedListsX[evaluateOpenList],closedListsY[evaluateOpenList],closedListDists[evaluateOpenList],neighborX, neighborY,dist,LENGTH,WIDTH,closedListX,closedListY,closedListCnt);
-        for (int addToOpenList = 0; addToOpenList < Ncount; addToOpenList++){
-            openListsX[openListCnt] = neighborsX[addToOpenList];
-            openListsY[openListCnt] = neighborsY[addToOpenList];
-            openListDists[openListCnt++] = dist[addToOpenList];
 
+    /**
+     * This loop is used to build the path till the destination is reached. A linkedlist node
+     * for each element is created till the destination is reached.
+    */
+
+    while (!pathFound){
+
+        cout << "Iteration = " << iterations++ << endl;
+
+        int neighborCount = 0;/// Keeps track of number of valid neighbors found.
+
+        tmpListCnt = 0;
+        for (int i=0; i<mopenListCnt; i++){
+            cout  << openListsX[i] << "," << openListsY[i] << endl;
+            neighborCount = findNeighbor(openListsX[i], openListsY[i], 0, neighborX, neighborY, dist , LENGTH, WIDTH, closedListX, closedListY, closedListCnt);
+            if(!insertDataIntoLinkedList (&head,openListsX[i],openListsY[i],&neighborsX[0],&neighborsY[0],&dists[0],neighborCount)){
+                cout << "ERROR: Failed to add item to LinkedList" << endl;
+            }
+
+            /**
+             * Temporarily stores the list of all neighbors.
+             * This can contain duplicate values.
+            */
+            for (int addToTmpList = 0; addToTmpList < neighborCount; addToTmpList++){
+                tmpListX[tmpListCnt] = neighborsX[addToTmpList];
+                tmpListY[tmpListCnt] = neighborsY[addToTmpList];
+                tmpListDists[tmpListCnt++] = dist[addToTmpList];
+            }
+
+
+
+            /**
+             * To check if the destination node is reached.
+             * This is done in the (n+1)th iteration as there
+             * are chances of us missing out on shorter paths
+             * in the n-th level.
+            */
+            if ((openListsX[i]==endX) && (openListsY[i]==endY)){
+                cout << "caught you!" << endl;
+                terminate = 1;
+                break;
+            }
         }
+
+
+
+        if (!terminate){
+
+            /**
+             * Find unique elements in the tmpList. tmpList
+             * contains neighbors of every pixel in the nth
+             * level of iteration. In order to find the next
+             * few nodes to evaluate, we need to find the unique
+             * of these.
+            */
+            mopenListCnt = findUnique(&tmpListX[0],&tmpListY[0],&tmpListDists[0],tmpListCnt);
+
+            /**
+              * Add all unique elements to the openList.
+              * Note that the openList index starts from 0 every time.
+              * So this completely refreshed for each iteration.
+            */
+            for (int addToOpenList = 0; addToOpenList < mopenListCnt; addToOpenList++){
+                openListsX[addToOpenList] = tmpListX[addToOpenList];
+                openListsY[addToOpenList] = tmpListY[addToOpenList];
+                openListDists[addToOpenList] = tmpListDists[addToOpenList];
+                cout << "On iteration " << iterations << " Values are = " << openListsX[addToOpenList] << "," << openListsY[addToOpenList] << "-->" << openListDists[addToOpenList] << endl;
+            }
+
+            /**
+             * Add elements to the closed list. This list would help in
+             * eliminating the points that have already been evaluated.
+             * Notice that this is being done in the (n+1)th iteration.
+            */
+            for (int addToClosedList = 0; addToClosedList < mopenListCnt; addToClosedList++){
+                closedListsX[closedListCnt] = tmpListX[addToClosedList];
+                closedListsY[closedListCnt] = tmpListY[addToClosedList];
+                closedListDists[closedListCnt++] = tmpListDists[addToClosedList];
+            }
+
+        } else {
+            pathFound = 1;
+        }
+        cout << "List length = " << listLength (head)  << endl;
     }
-//    for (int i = 0;i<openListCnt;i++)
-//        cout << i<< ":" << openListsX[i] << "," << openListsY[i] << endl;
-//
-//     cout << "Eliminating duplicates now..." << endl;
 
-    /// Find only unique elements of openList
-    openListCnt = findUnique(&openListsX[0],&openListsY[0],&openListDists[0],openListCnt);
 
-//    /// Test with dist below ***
-//    cout << "Updated openList now is.." << endl;
-//    for (int i = 0;i<openListCnt;i++)
-//        cout << i<< ":" << openListsX[i] << "," << openListsY[i] << "->" << openListDists[i] << endl;
+
+    /* Reverse the order of linkedlist */
+
+    reverseLinkedList (&head);
+    int totalNodes = listLength(head);
+
+
+    cout << "Traced end point. " << "Found " <<  totalNodes << " nodes. Starting to backtrack.." << endl;
+
+    int graph[20][20]={0};
+    backTrack_t * headBacktrack = (backTrack_t*) malloc(sizeof(backTrack_t));
+    headBacktrack->next = NULL;
+    headBacktrack->x = head->pXval;
+    headBacktrack->y = head->pYval;
+    headBacktrack->index = 0;
+
+    /// Index all X and Y locations
+    indexXY(head,&headBacktrack);
+    reverseLinkedListbt (&headBacktrack);
+
+
+    for (int i=0; i <head->numNeighbors;i++){
+        graph[i+1][0] = head->dists[i];
+    }
+
+    cout << "next node = " << listLengthbt(headBacktrack) << endl;
+    //printGraph(&graph[0][0],totalNodes, totalNodes);
+    for (int i=0;i<totalNodes;i++){
+        for (int j=0;j<totalNodes;j++){
+            cout << graph[i][j] << " ";
+        }
+        cout << endl;
+    }
 
 
     return 0;
 }
+
+
+
+
+    /* ------------------------------------------------ */
+
+////    /// Add start node to closed list
+////    closedListsX[0] = startX;
+////    closedListsY[0] = startY;
+////    closedListCnt++;
+////
+////    for (int i = 0;i<Ncount;i++){
+////        cout << neighborX[i] << "," << neighborY[i] << "-->" << dist[i] << endl;
+////    }
+////
+////
+////    /// Add first neighbors to closed list
+////    for (int addToClosedList = 0; addToClosedList < Ncount; addToClosedList++){
+////         closedListsX[closedListCnt] = neighborsX[addToClosedList];
+////         closedListsY[closedListCnt] = neighborsY[addToClosedList];
+////         closedListDists[closedListCnt++] = dists[addToClosedList];
+////    }
+////
+////
+////    /// Clear neighbors before finding new list of neighbors
+////    /*  This has been taken care as Ncount is returned from the
+////        findNeighbors function, care must be taken at the programmer's
+////        end to evaluate the neighbor array only till the value of Ncount */
+////
+////    /// Add neighbors to openList
+////    for (int evaluateOpenList = 1; evaluateOpenList < closedListCnt ;evaluateOpenList++){
+////        Ncount = findNeighbor(closedListsX[evaluateOpenList],closedListsY[evaluateOpenList],closedListDists[evaluateOpenList],neighborX, neighborY,dist,LENGTH,WIDTH,closedListX,closedListY,closedListCnt);
+////        for (int addToOpenList = 0; addToOpenList < Ncount; addToOpenList++){
+////            openListsX[openListCnt] = neighborsX[addToOpenList];
+////            openListsY[openListCnt] = neighborsY[addToOpenList];
+////            openListDists[openListCnt++] = dist[addToOpenList];
+////        }
+////    }
+//////    for (int i = 0;i<openListCnt;i++)
+//////        cout << i<< ":" << openListsX[i] << "," << openListsY[i] << endl;
+//////
+//////     cout << "Eliminating duplicates now..." << endl;
+////
+////    /// Find only unique elements of openList
+////    openListCnt = findUnique(&openListsX[0],&openListsY[0],&openListDists[0],openListCnt);
+////
+//////    /// Test with dist below ***
+//////    cout << "Updated openList now is.." << endl;
+//////    for (int i = 0;i<openListCnt;i++)
+//////        cout << i<< ":" << openListsX[i] << "," << openListsY[i] << "->" << openListDists[i] << endl;
+
+
+////    return 0;
+////}
 
 int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
     int x_check,y_check;
@@ -123,7 +459,7 @@ int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
     int delCount = 0;
     for (int i=0;i<openListcnt;i++){
        if (checkedOff[i]==1){
-            //cout << i << " " << tmpOpenListCountX << endl;
+           // cout << "DUBLICATE " << i << " " << listX[tmpOpenListCountX] << "," << listY[tmpOpenListCountX] << endl;
             tmpOpenListCountX = removeElement(listX,i-delCount,tmpOpenListCountX);
             tmpOpenListCountY = removeElement(listY,i-delCount,tmpOpenListCountY);
             tmpDistCount = removeElement(distXY,i-delCount,tmpDistCount);
