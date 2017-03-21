@@ -8,6 +8,7 @@ ABSTRACT: This code is used to find the shortest path between two points
 #include <string>
 #include <stdlib.h>
 #include <cstddef>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -24,14 +25,14 @@ int removeElement(int *arrayList, int pos, int numElements);
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width);
 int findShortestDijkstra(uint8_t* g, int N, int *shortestPath, int *pathDistance);
 
-int LENGTH = 50;
-int WIDTH = 50;
+int LENGTH = 100;
+int WIDTH = 100;
 
 int startX = 1;
 int startY = 1;
 
-int endX = 40;
-int endY = 40;
+int endX = 60;
+int endY = 60;
 
 typedef struct genPath{
     int pXval;
@@ -273,7 +274,8 @@ int main()
 
     const int xgraphWidth = totalNodes;
     const int ygraphWidth = totalNodes;
-    uint8_t graph[xgraphWidth][ygraphWidth]={0};
+    uint8_t graph[xgraphWidth][ygraphWidth];
+    memset(graph, 0, xgraphWidth*ygraphWidth*sizeof(uint8_t) );
 
     backTrack_t * headBacktrack = (backTrack_t*) malloc(sizeof(backTrack_t));
     headBacktrack->next = NULL;
@@ -326,7 +328,8 @@ int main()
 ////    }
 
     int pathDistance = 0;
-    int shortestPath[totalNodes]={-1};
+    int shortestPath[totalNodes];
+    memset(shortestPath,-1,totalNodes*sizeof(int));
     int Nvals;
 
 
@@ -560,7 +563,8 @@ void reverseLinkedListbt (backTrack_t** head){
 int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
     int x_check,y_check;
     int duplicate=0;
-    int checkedOff[openListcnt]={0};
+    int checkedOff[openListcnt];
+    memset(checkedOff,0,openListcnt*sizeof(int) );
     for (int i=0;i<openListcnt;i++){
         if (checkedOff[i]==0){
             x_check = listX[i];
@@ -758,7 +762,7 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
 }
 
 int findMinLoc(int dist[],bool pri[],int N){
-    int minval = INT_MAX;
+    int minval = INT32_MAX;
     int minloc = 0;;
     for (int i = 0; i< N; i++){
         if(!pri[i] && dist[i]<minval){
@@ -776,7 +780,8 @@ int findShortestDijkstra(uint8_t* tmp_g, int N, int *shortestPath, int *pathDist
     bool pri[N];
     int path[N];
 cout << "You are safe till here" << endl;
-    uint8_t g[N][N]={0};
+    uint8_t g[N][N];
+   memset( g, 0, N*N*sizeof(uint8_t) ); 
     struct timeval start_time, stop_time, elapsed_time;  // timers
 
 
@@ -798,7 +803,7 @@ cout << "You are safe till here" << endl;
 
     /// Initialize all values in the queue infinity.
     for (i = 0 ; i < N ; i++){
-        dist[i] = INT_MAX; /// Infinity
+        dist[i] = INT32_MAX; /// Infinity
         pri[i] = false;
         path[i] = 0;
     }
@@ -816,7 +821,7 @@ cout << "You are safe till here" << endl;
         pri[u] = true;
 
         for (j = 0; j < N ;j++){
-                if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
+                if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT32_MAX && !pri[j]){
                     /// update queue
                     dist[j] = g[u][j] + dist[u];
                     path[j] = u;
@@ -825,7 +830,7 @@ cout << "You are safe till here" << endl;
     }
 
     gettimeofday(&stop_time,NULL);
-//    timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
+    timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
 
     //for (i = 0 ; i < N ; i++){
