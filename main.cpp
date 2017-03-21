@@ -13,8 +13,7 @@ ABSTRACT: This code is used to find the shortest path between two points
 #include <map>
 #include <omp.h>
 #include <sys/time.h>
-
-
+#include <stdint.h>
 
 using namespace std;
 
@@ -23,16 +22,16 @@ int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int 
 int findUnique(int * listX,int * listY, int *distXY, int openListcnt);
 int removeElement(int *arrayList, int pos, int numElements);
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width);
-int findShortestDijkstra(int* g, int N, int *shortestPath, int *pathDistance);
+int findShortestDijkstra(uint8_t* g, int N, int *shortestPath, int *pathDistance);
 
-int LENGTH = 5;
-int WIDTH = 5;
+int LENGTH = 50;
+int WIDTH = 50;
 
-int startX = 3;
-int startY = 3;
+int startX = 1;
+int startY = 1;
 
-int endX = 1;
-int endY = 2;
+int endX = 40;
+int endY = 40;
 
 typedef struct genPath{
     int pXval;
@@ -180,7 +179,7 @@ int main()
         tmpListCnt = 0;
         for (int i=0; i<mopenListCnt; i++){
 
-            cout  << openListsX[i] << "," << openListsY[i] << endl;
+            ///cout  << openListsX[i] << "," << openListsY[i] << endl;
             neighborCount = findNeighbor(openListsX[i], openListsY[i], 0, neighborX, neighborY, dist , LENGTH, WIDTH, closedListX, closedListY, closedListCnt);
 
             // Declare another variable and put into linkedList.
@@ -215,8 +214,6 @@ int main()
                 break;
             }
         }
-
-
 
         if (!terminate){
 
@@ -276,7 +273,7 @@ int main()
 
     const int xgraphWidth = totalNodes;
     const int ygraphWidth = totalNodes;
-    int graph[xgraphWidth][ygraphWidth]={0};
+    uint8_t graph[xgraphWidth][ygraphWidth]={0};
 
     backTrack_t * headBacktrack = (backTrack_t*) malloc(sizeof(backTrack_t));
     headBacktrack->next = NULL;
@@ -287,45 +284,52 @@ int main()
     /// Index all X and Y locations
     indexXY(head,&headBacktrack);
     reverseLinkedListbt(&headBacktrack);
-    cout << "Length of indexed LL " << listLengthbt(headBacktrack) << endl;
+    ///cout << "Length of indexed LL " << listLengthbt(headBacktrack) << endl;
 
     genPath * current = head;
     int index;
     int counter = 0;
 
+    int count0 =0;
+    int countn0 =0;
     while (current!=NULL){
 
         //cout << current->pXval << "," << current->pYval << endl;
 
-        cout << "Neighbors of " << current->pXval << "," << current->pYval << " is.." << endl;
+       /// cout << "Neighbors of " << current->pXval << "," << current->pYval << " is.." << endl;
 
         for (int thisIndex = 0; thisIndex<current->numNeighbors; thisIndex++){
-                cout << current->x_neighbors[thisIndex] << "," << current->y_neighbors[thisIndex] << endl;
+                ///cout << current->x_neighbors[thisIndex] << "," << current->y_neighbors[thisIndex] << endl;
                 index = findIndex(headBacktrack,current->x_neighbors[thisIndex],current->y_neighbors[thisIndex]);
                 if (index >= 0){
                     graph[index][counter] = current->dists[thisIndex];
+                    countn0++;
                 } else {
                     graph[index] [counter]  = 0;
+                    count0++;
                     //cout << "Could not find the index." << endl;
                 }
         }
 
-        cout << "counter now is = " << counter << endl;
+        ///cout << "counter now is = " << counter << endl;
         counter ++;
         current = current->next;
     }
 
+    cout << "counter 0 = " << count0 << " -- > countern0 = " << countn0 << endl;
     //printGraph(&graph[0][0],totalNodes, totalNodes);
-    for (int i=0;i<totalNodes;i++){
-        for (int j=0;j<totalNodes;j++){
-            cout << graph[i][j] << " ";
-        }
-        cout << endl;
-    }
+////    for (int i=0;i<totalNodes;i++){
+////        for (int j=0;j<totalNodes;j++){
+////            cout << graph[i][j] << " ";
+////        }
+////        cout << endl;
+////    }
 
     int pathDistance = 0;
     int shortestPath[totalNodes]={-1};
     int Nvals;
+
+
     Nvals = findShortestDijkstra(&graph[0][0], totalNodes, &shortestPath[0], &pathDistance);
 
 //    cout << "Path is = " << endl;
@@ -352,38 +356,85 @@ int main()
 
     return 0;
 }
+
+
+
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth){
-       int terrain[terrainLength][terrainWidth]={0};
-       int Xval,Yval;
+       //int terrain[terrainLength][terrainWidth]={0};
+       //int Xval,Yval;
        ///terrain[terrainLength-1][terrainWidth-1]=0;
 
-       for (int i = 0;i < pathLength; i++){
-            Xval = pathX[i];
-            Yval = pathY[i];
-            terrain[Xval][Yval] = 127;
-       }
+       //for (int i = 0;i < pathLength; i++){
+           // Xval = pathX[i];
+            //Yval = pathY[i];
+            //terrain[Xval][Yval] = 127;
+       //}
 
-       terrain[startLocX][startLocY] = 255;
-       terrain[endLocX][endLocY] = 255;
+       //terrain[startLocX][startLocY] = 255;
+       //terrain[endLocX][endLocY] = 255;
 
-       for (int i=0;i<terrainLength;i++){
-            for (int j=0; j<terrainWidth;j++){
-                cout << terrain[i][j] << ",";
-            }
-            cout << endl;
-       }
-       /// Print into file -> path.txt
+        /// Print into file -> path.txt
         ofstream myfile;
         myfile.open ("path.txt");
 
+
+        int isPath;
+        int notPath;
         for (int i=0;i<terrainLength;i++){
-            for (int j=0;j<terrainWidth;j++){
-                myfile << terrain[i][j] << " ";
+            for (int j=0; j<terrainWidth;j++){
+                 isPath = 0;
+                 notPath = 0;
+                 if (startLocX==i && startLocY==j){
+                    myfile << "255,";
+                    isPath = 1;
+                    notPath = 1;
+                 }
+                 if (endLocX==i && endLocY==j){
+                    myfile << "255,";
+                    isPath = 1;
+                    notPath = 1;
+                 }
+
+                 if (!notPath){
+                    for (int thisIndex = 0;thisIndex < pathLength; thisIndex++){
+                        if (pathX[thisIndex]==i){
+                            if (pathY[thisIndex]==j){
+                                myfile << "127,";
+                                isPath = 1;
+                            }
+                        }
+                    }
+
+                 }
+
+//                 if (startLocX==i && startLocY==j){
+//                    myfile << "255,";
+//                    isPath = 1;
+//                 }
+//                 if (endLocX==i && endLocY==j){
+//                    myfile << "255,";
+//                    isPath = 1;
+//                 }
+                 if (!isPath){
+                    myfile << "0,";
+                 }
+                //cout << terrain[i][j] << ",";
             }
             myfile << endl;
-        }
+       }
 
-        myfile.close();
+       myfile.close();
+       return;
+
+////
+////        for (int i=0;i<terrainLength;i++){
+////            for (int j=0;j<terrainWidth;j++){
+////                myfile << terrain[i][j] << " ";
+////            }
+////            myfile << endl;
+////        }
+////
+////        myfile.close();
         return;
 }
 
@@ -450,7 +501,7 @@ int listLengthbt (backTrack_t* head){
     int count =0;
     while (current != NULL){
         count ++;
-        cout << "Monitor: " << current->x << "," << current->y << " -> "<< current->index << endl;
+        //cout << "Monitor: " << current->x << "," << current->y << " -> "<< current->index << endl;
         current = current -> next;
     }
     return count;
@@ -522,7 +573,7 @@ int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
             }
         }
     }
-    cout << "number of duplicates found = " << duplicate << endl;
+    //cout << "number of duplicates found = " << duplicate << endl;
 
     int tmpOpenListCountX=openListcnt;
     int tmpOpenListCountY=openListcnt;
@@ -718,20 +769,23 @@ int findMinLoc(int dist[],bool pri[],int N){
     return minloc;
 }
 
-int findShortestDijkstra(int* tmp_g, int N, int *shortestPath, int *pathDistance){
+int findShortestDijkstra(uint8_t* tmp_g, int N, int *shortestPath, int *pathDistance){
 
     int i,j;
     int dist[N];
     bool pri[N];
     int path[N];
-
-    int g[N][N]={0};
+cout << "You are safe till here" << endl;
+    uint8_t g[N][N]={0};
     struct timeval start_time, stop_time, elapsed_time;  // timers
 
 
     for (int i=0;i<N;i++){
         for (int j=0;j<N;j++){
             g[i][j] = *((tmp_g+i*N) + j);
+            if (g[i][j]>14 || g[i][j]<10){
+                g[i][j] = 0;
+            }
         }
     }
 //
@@ -774,9 +828,9 @@ int findShortestDijkstra(int* tmp_g, int N, int *shortestPath, int *pathDistance
 //    timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
 
-    for (i = 0 ; i < N ; i++){
-        cout << dist[i] <<endl;
-    }
+    //for (i = 0 ; i < N ; i++){
+        //cout << dist[i] <<endl;
+    //}
     *pathDistance = dist[N-1];
 
 //    cout << "stored in path format --> " << endl;
@@ -811,8 +865,8 @@ int findShortestDijkstra(int* tmp_g, int N, int *shortestPath, int *pathDistance
         if (finalPath[i]!=-1){
             *shortestPath++ = finalPath[i];
             Nvals = i;
+            cout << finalPath[i] <<endl;
         }
-        cout << finalPath[i] <<endl;
     }
     return ++Nvals;
 }

@@ -1,8 +1,13 @@
 # depslib dependency file v1.0
-1489984098 source:d:\fourth_sem\finalproject\referenceprojects\terraingen\main.cpp
+1490132932 source:d:\fourth_sem\finalproject\referenceprojects\terraingen\main.cpp
 	<iostream>
 	<string>
 	<stdlib.h>
 	<cstddef>
 	<fstream>
+	<limits>
+	<map>
+	<omp.h>
+	<sys/time.h>
+	<stdint.h>
 
