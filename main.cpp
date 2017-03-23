@@ -19,9 +19,9 @@ ABSTRACT: This code is used to find the shortest path between two points
 using namespace std;
 
 
-int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, int* closedListX, int* closedListY, int NclosedList);
-int findUnique(int * listX,int * listY, int *distXY, int openListcnt);
-int removeElement(int *arrayList, int pos, int numElements);
+int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, uint8_t* closedListX, uint8_t* closedListY, int NclosedList);
+int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt);
+int removeElement(uint8_t *arrayList, int pos, int numElements);
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width);
 int findShortestDijkstra(uint8_t* g, int N, int *shortestPath, int *pathDistance);
 
@@ -31,8 +31,8 @@ int WIDTH = 100;
 int startX = 1;
 int startY = 1;
 
-int endX = 60;
-int endY = 60;
+int endX = 40;
+int endY = 40;
 
 typedef struct genPath{
     int pXval;
@@ -73,20 +73,20 @@ int main()
     int dists[8]={0,0,0,0,0,0,0,0};
     int tmpDists[8] = {0,0,0,0,0,0,0,0};
 
-    int closedListsX[1000];///={4,5};
-    int closedListsY[1000];///={4,4};
-    int closedListDists[1000];
+    uint8_t closedListsX[2000];///={4,5};
+    uint8_t closedListsY[2000];///={4,4};
+    uint8_t closedListDists[2000];
 
-    int openListsX[1000];
-    int openListsY[1000];
-    int openListDists[1000];
+    uint8_t openListsX[2000];
+    uint8_t openListsY[2000];
+    uint8_t openListDists[2000];
 
-    int tmpListX[1000];
-    int tmpListY[1000];
-    int tmpListDists[1000];
+    uint8_t tmpListX[2000];
+    uint8_t tmpListY[2000];
+    uint8_t tmpListDists[2000];
 
-    int *closedListX = &closedListsX[0];
-    int *closedListY = &closedListsY[0];
+    uint8_t *closedListX = &closedListsX[0];
+    uint8_t *closedListY = &closedListsY[0];
     //int *closedListDist = &closedListDists[0];
 
     int *neighborX = &neighborsX[0];
@@ -274,6 +274,7 @@ int main()
 
     const int xgraphWidth = totalNodes;
     const int ygraphWidth = totalNodes;
+
     uint8_t graph[xgraphWidth][ygraphWidth];
     memset(graph, 0, xgraphWidth*ygraphWidth*sizeof(uint8_t) );
 
@@ -305,10 +306,10 @@ int main()
                 index = findIndex(headBacktrack,current->x_neighbors[thisIndex],current->y_neighbors[thisIndex]);
                 if (index >= 0){
                     graph[index][counter] = current->dists[thisIndex];
-                    countn0++;
+                    //countn0++;
                 } else {
-                    graph[index] [counter]  = 0;
-                    count0++;
+                    graph[index][counter]  = 0;
+                    //count0++;
                     //cout << "Could not find the index." << endl;
                 }
         }
@@ -318,15 +319,16 @@ int main()
         current = current->next;
     }
 
-    cout << "counter 0 = " << count0 << " -- > countern0 = " << countn0 << endl;
-    //printGraph(&graph[0][0],totalNodes, totalNodes);
-////    for (int i=0;i<totalNodes;i++){
-////        for (int j=0;j<totalNodes;j++){
-////            cout << graph[i][j] << " ";
-////        }
-////        cout << endl;
-////    }
-
+    //cout << "counter 0 = " << count0 << " -- > countern0 = " << countn0 << endl;
+    //printGraph(&graph[0][0],totalNodes, totalNodes);  
+    
+   //for (int i = 0; i < xgraphWidth; i++){
+    //for (int j = 0; j < ygraphWidth; j++) {
+        //std::cout << +graph[i][j] << " ";
+    //}
+    //std::cout << endl;
+   //}
+    
     int pathDistance = 0;
     int shortestPath[totalNodes];
     memset(shortestPath,-1,totalNodes*sizeof(int));
@@ -363,19 +365,6 @@ int main()
 
 
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth){
-       //int terrain[terrainLength][terrainWidth]={0};
-       //int Xval,Yval;
-       ///terrain[terrainLength-1][terrainWidth-1]=0;
-
-       //for (int i = 0;i < pathLength; i++){
-           // Xval = pathX[i];
-            //Yval = pathY[i];
-            //terrain[Xval][Yval] = 127;
-       //}
-
-       //terrain[startLocX][startLocY] = 255;
-       //terrain[endLocX][endLocY] = 255;
-
         /// Print into file -> path.txt
         ofstream myfile;
         myfile.open ("path.txt");
@@ -409,36 +398,15 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
                     }
 
                  }
-
-//                 if (startLocX==i && startLocY==j){
-//                    myfile << "255,";
-//                    isPath = 1;
-//                 }
-//                 if (endLocX==i && endLocY==j){
-//                    myfile << "255,";
-//                    isPath = 1;
-//                 }
                  if (!isPath){
                     myfile << "0,";
                  }
-                //cout << terrain[i][j] << ",";
             }
             myfile << endl;
        }
 
        myfile.close();
        return;
-
-////
-////        for (int i=0;i<terrainLength;i++){
-////            for (int j=0;j<terrainWidth;j++){
-////                myfile << terrain[i][j] << " ";
-////            }
-////            myfile << endl;
-////        }
-////
-////        myfile.close();
-        return;
 }
 
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval){
@@ -560,8 +528,8 @@ void reverseLinkedListbt (backTrack_t** head){
     return;
 }
 
-int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
-    int x_check,y_check;
+int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt){
+    uint8_t x_check,y_check;
     int duplicate=0;
     int checkedOff[openListcnt];
     memset(checkedOff,0,openListcnt*sizeof(int) );
@@ -614,7 +582,7 @@ int findUnique(int * listX,int * listY, int *distXY, int openListcnt){
   * OUTPUTS:
   *    rnumElemnts = Number of elements after pop().
   */
-int removeElement(int *arrayList, int pos, int numElements){
+int removeElement(uint8_t *arrayList, int pos, int numElements){
    memmove(&arrayList[pos],&arrayList[pos+1],sizeof(int)*(numElements-pos-1));
    int rnumElements = numElements -1;
    return rnumElements;
@@ -637,7 +605,7 @@ int removeElement(int *arrayList, int pos, int numElements){
 
   OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
 */
-int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, int* closedListX, int* closedListY, int NclosedList){
+int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, uint8_t* closedListX, uint8_t* closedListY, int NclosedList){
 
     int validX[3],validY[3];
     int xVals[3] = {x-1,x,x+1};
@@ -734,17 +702,9 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
     validY[1] = 1;
 
     int Ncount=0;
-//    int dontConsider=0;
     for (int i = 0; i < 3; i++){
         for (int j = 0; j < 3; j++){
             if (validX[i] && validY[j] && !(i==1&&j==1)){
-            //dontConsider = 0;
-//              for (int k=0 ;k < NclosedList; k++){
-//                if (xVals[i] == closedListX[k] && yVals[j] == closedListY[k]){
-//                    dontConsider = 1;
-//                }
-//              }
-              //if (!dontConsider){
                 neighborX[Ncount] = xVals[i];
                 neighborY[Ncount] = yVals[j];
                 if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
@@ -753,7 +713,6 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
                     dist[Ncount] = distToXY + 10;
                 }
                 Ncount++;
-              //}
             }
         }
     }
@@ -763,7 +722,8 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
 
 int findMinLoc(int dist[],bool pri[],int N){
     int minval = INT32_MAX;
-    int minloc = 0;;
+    int minloc = 0;
+    
     for (int i = 0; i< N; i++){
         if(!pri[i] && dist[i]<minval){
             minval = dist[i];
@@ -793,7 +753,7 @@ cout << "You are safe till here" << endl;
             }
         }
     }
-//
+
 //    for (int i=0;i<N;i++){
 //        for (int j=0;j<N;j++){
 //            cout << g[i][j] << ",";
@@ -814,12 +774,14 @@ cout << "You are safe till here" << endl;
     int u;
 
 
-   /// Path finding..
-   gettimeofday(&start_time,NULL); // Unix timer
+    /// Path finding..
+    gettimeofday(&start_time,NULL); // Unix timer
+   
+    
     for (i = 0 ; i < N-1 ; i++){
         u = findMinLoc(dist,pri,N);
         pri[u] = true;
-
+        #pragma omp parallel shared (g,path,pri,dist,N,u) private(j)
         for (j = 0; j < N ;j++){
                 if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT32_MAX && !pri[j]){
                     /// update queue
@@ -827,8 +789,11 @@ cout << "You are safe till here" << endl;
                     path[j] = u;
                 }
         }
+        
     }
 
+
+    
     gettimeofday(&stop_time,NULL);
     timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
@@ -838,10 +803,10 @@ cout << "You are safe till here" << endl;
     //}
     *pathDistance = dist[N-1];
 
-//    cout << "stored in path format --> " << endl;
-//    for (i = 0 ; i < N ; i++){
-//        cout << path[i] <<endl;
-//    }
+    //cout << "stored in path format --> " << endl;
+    //for (i = 0 ; i < N ; i++){
+    //    cout << path[i] <<endl;
+    //}
 
 
     /// Backtrack to find the right path.
