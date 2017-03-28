@@ -38,8 +38,8 @@ int startY = 1;
 /**
  * Specify location of the end(destination) node.
  */
-int endX = 60;
-int endY = 60;
+int endX = 99;
+int endY = 99;
 
 /**
  * This data structure is used to store a pixel and
@@ -77,7 +77,7 @@ typedef struct backTrack{
  *    triangular matrix hence reducing the
  *    size of the graph to N/2
  * 2. It supports the implementation of ignoring
- *    the lower part of the matrix.
+ *    all elements that are 0.
  */
 typedef struct graphLL{
     int x;
@@ -85,6 +85,13 @@ typedef struct graphLL{
     int value;
     graphLL * next;
 }graph_t;
+
+
+typedef struct listNode{
+    int vertexNum;
+    int dist;
+    struct listNode* next;
+}listNode_t;
 
 int listLength (genPath* head);
 int listLengthbt (backTrack_t* head);
@@ -100,18 +107,7 @@ int findMinLoc(int dist[],bool pri[],int N);
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval);
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth);
 int insertIntoGraph(graph_t** headG,int index,int counter,int value);
-int findShortestDijkstra(graph_t* head, int N, int *shortestPath, int *pathDistance);
-
-int sumMe(int n)
-{
-    if (n<=0){
-        return 0;
-    }
-    if (n==1){
-        return 1;
-    }
-    return n+sumMe(n-1);
-}
+int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance);
 
 int main()
 {
@@ -121,9 +117,9 @@ int main()
     int dists[8]={0,0,0,0,0,0,0,0};
     int tmpDists[8] = {0,0,0,0,0,0,0,0};
 
-    uint8_t closedListsX[8000];///={4,5};
-    uint8_t closedListsY[8000];///={4,4};
-    uint8_t closedListDists[8000];
+    uint8_t closedListsX[10000];///={4,5};
+    uint8_t closedListsY[10000];///={4,4};
+    uint8_t closedListDists[10000];
 
     uint8_t openListsX[4000];
     uint8_t openListsY[4000];
@@ -148,9 +144,9 @@ int main()
     int pathFound = 0;
     int openListCnt = 0;
     int closedListCnt = 0;
-    int mopenListCnt=0;
+    int mopenListCnt = 0;
     int terminate = 0; /// This is used to indicate that the destination was found.
-    int iterations =0; /// This is used to monitor the number of iterations required to reach destination.
+    int iterations = 0; /// This is used to monitor the number of iterations required to reach destination.
     int tmpListCnt;
 
     /** Initialize genPath linkedList **/
@@ -274,8 +270,9 @@ int main()
             }
 
             /// Extra care to make code safe
-            if ((closedListCnt>8000)|| (mopenListCnt>4000) || (tmpListCnt>4000) ){
-                cout << "ERROR" << endl;
+            if ((closedListCnt>10000)|| (mopenListCnt>4000) || (tmpListCnt>4000) ){
+                cout << "ERROR: closedListCnt = " << closedListCnt << ". Openlist cnt = " << mopenListCnt << ". tmpListcount = " << tmpListCnt << endl;
+                return 1;
             }
 
         }
@@ -323,7 +320,7 @@ int main()
          * Perform memory check. If index overwrites stack space, this
          * will display an alert message.
          */
-        if ((closedListCnt>8000)|| (mopenListCnt>4000) || (tmpListCnt>4000) ){
+        if ((closedListCnt>10000)|| (mopenListCnt>4000) || (tmpListCnt>4000) ){
             cout << "ERROR: closedListCnt = " << closedListCnt << ". Openlist cnt = " << mopenListCnt << ". tmpListcount = " << tmpListCnt << endl;
             return 1;
         }
@@ -359,14 +356,24 @@ int main()
 
     genPath * current = head;
 
-    graph_t * headG = (graph_t*) malloc(sizeof(graph_t));
-    headG->next = NULL;
-    headG->x = -1;
-    headG->y = -1;
-    headG->value = -1;
+//    graph_t * headG = (graph_t*) malloc(sizeof(graph_t));
+//    headG->next = NULL;
+//    headG->x = -1;
+//    headG->y = -1;
+//    headG->value = -1;
 
-    graph_t * headG_allXs[totalNodes];
+    /**
+     * adj stores the vertices of the adjacency matrix.
+     */
+    listNode_t * adj[totalNodes];
+    for (int i = 0 ; i < totalNodes; i++){
+        adj[i] = (listNode_t*) malloc(sizeof(listNode_t));
+        adj[i]->vertexNum = i;
+        adj[i]->next = adj[i];
+    }
 
+    /** Used for adding nodes in adjacency matrix*/
+    listNode_t * temp;
 
     int index;
     int counter = 0;
@@ -382,7 +389,7 @@ int main()
      *               when accessing elements. Thus effecting the kernel
      *               drastically.
      *
-     * - Revision 2(proposed): To reduce the time complexity from n^2 to
+     * - Revision 2: To reduce the time complexity from n^2 to
      *               n, all x indices of the graph are stored in an array
      *               of pointers. Each of these pointers point to a linked
      *               list of its own.
@@ -406,11 +413,18 @@ int main()
                  * Also eliminates any element 0 value element.
                  */
                 if (index<counter && index!=-1 && current->dists[thisIndex]!=0){
+
+                        temp = (listNode_t*) malloc(sizeof(listNode_t));
+                        temp->vertexNum = counter;
+                        temp->dist = current->dists[thisIndex];
+                        temp->next = adj[index];
+                        adj[index]->next = temp;
+
                         /// Insert value into linked list.
                         /// g[index][counter]
-                        if(!insertIntoGraph(&headG,index,counter,current->dists[thisIndex])){
-                            cout << "ERROR: Failed to add element to linkedList";
-                        }
+                        //if(!insertIntoGraph(&headG,index,counter,current->dists[thisIndex])){
+                        //    cout << "ERROR: Failed to add element to linkedList";
+                        //}
                 }
         }
 
@@ -419,8 +433,8 @@ int main()
         current = current->next;
     }
 
-    reverseLinkedListG(&headG);
-    cout << "Finished building the graph. Graph consists of " << listLengthG(headG) << " elements." << endl;
+    //reverseLinkedListG(&headG);
+    cout << "Finished building the graph." << endl;
 
     int pathDistance = 0;
     int shortestPath[totalNodes];
@@ -428,7 +442,7 @@ int main()
     int Nvals;
 
 
-    Nvals = findShortestDijkstra(headG, totalNodes, &shortestPath[0], &pathDistance);
+    Nvals = findShortestDijkstra(&adj[0], totalNodes, &shortestPath[0], &pathDistance);
 
     int Xval[Nvals],Yval[Nvals];
     for (int i = 0; i < Nvals; i++){
@@ -889,7 +903,17 @@ int findMinLoc(int dist[],bool pri[],int N){
     return minloc;
 }
 
-int findShortestDijkstra(graph_t* head, int N, int *shortestPath, int *pathDistance){
+int findValFromGraph(listNode_t **vertices, int x,int y){
+    do{
+        if(vertices[x]->vertexNum==y){
+            return vertices[x]->dist;
+        }
+        vertices[x] = vertices[x]->next;
+    }while(vertices[x]->vertexNum!=x);
+    return 0;
+}
+
+int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance){
 
     int i,j;
     int dist[N];
@@ -922,7 +946,9 @@ int findShortestDijkstra(graph_t* head, int N, int *shortestPath, int *pathDista
         pri[u] = true;
         #pragma omp parallel shared (g,path,pri,dist,N,u) private(j)
         for (j = 0; j < N ;j++){
-                thisval = findVal(head,u,j);
+                ///thisval = findVal(head,u,j);
+                thisval = findValFromGraph(vertices,u,j);
+
                 if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT_MAX) && (!pri[j])){
                 //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                     /// update queue
