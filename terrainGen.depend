@@ -1,9 +1,10 @@
 # depslib dependency file v1.0
-1490132932 source:d:\fourth_sem\finalproject\referenceprojects\terraingen\main.cpp
+1490692056 source:d:\fourth_sem\finalproject\referenceprojects\terraingen\main.cpp
 	<iostream>
 	<string>
 	<stdlib.h>
 	<cstddef>
+	<cstring>
 	<fstream>
 	<limits>
 	<map>
