@@ -72,12 +72,15 @@ typedef struct backTrack{
  * This linked list is used to store the
  * N x N graph. This is an intelligent method
  * to store a huge graph. This offers two
- * advantages over using a 2D arrray:
+ * advantages over using a 2D array:
  * 1. It can be used to store just the upper
  *    triangular matrix hence reducing the
  *    size of the graph to N/2
  * 2. It supports the implementation of ignoring
  *    all elements that are 0.
+ * 3. The structure of the graph makes reduces time
+ *    complexity of searching for a node to be N from
+ *    from N^2
  */
 typedef struct graphLL{
     int x;
@@ -85,7 +88,6 @@ typedef struct graphLL{
     int value;
     graphLL * next;
 }graph_t;
-
 
 typedef struct listNode{
     int vertexNum;
@@ -95,18 +97,15 @@ typedef struct listNode{
 
 int listLength (genPath* head);
 int listLengthbt (backTrack_t* head);
-int listLengthG (graph_t* head);
 int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX, int * neighborY, int *dist, int neighborCount);
 void reverseLinkedList (genPath** head);
 void reverseLinkedListbt (backTrack_t** head);
-void reverseLinkedListG(graph_t** head);
 void printGraph(int * graph,int xlim, int ylim);
 int findIndex (backTrack_t* headBT,int x, int y);
 void indexXY(genPath * head,backTrack_t **headBacktrack);
 int findMinLoc(int dist[],bool pri[],int N);
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval);
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth);
-int insertIntoGraph(graph_t** headG,int index,int counter,int value);
 int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance);
 
 int main()
@@ -356,12 +355,6 @@ int main()
 
     genPath * current = head;
 
-//    graph_t * headG = (graph_t*) malloc(sizeof(graph_t));
-//    headG->next = NULL;
-//    headG->x = -1;
-//    headG->y = -1;
-//    headG->value = -1;
-
     /**
      * adj stores the vertices of the adjacency matrix.
      */
@@ -464,7 +457,26 @@ int main()
 }
 
 
-
+/**
+ * ABSTRACT: This function is used to print the path found from start
+ *           to goal node into a file. This can be read as an image
+ *           in order to visualize the path.
+ *           The function writes into the file named, "path.txt".
+ *           startNode and endNode - 255
+ *           path - 125
+ *           rest of terrain - 0
+ * INPUTS: startLocX - X index of start node.
+ *         startLocY - Y index of start node.
+ *         endLocX   - X index of end(goal) node.
+ *         endLocY   - Y index of end(goal) node.
+ *         pathX     - X indices of shortest path.
+ *         pathY     - Y indices of shortest path.
+ *         pathLength - Length the shortest path (excludes start and end node)
+ *         terrainLength - Length of the terrain.
+ *         terrainWidth  - Width of the terrain.
+ *
+ * OUTPUTS : Writes the path into file -> path.txt
+ */
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth){
 
         /// Print into file -> path.txt
@@ -509,6 +521,10 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
        return;
 }
 
+/**
+ * This function is used to find the [x,y] indices of
+ * pixels from the corresponding linear indices.
+ */
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval){
     while(headBT!=NULL){
         if(headBT->index==index){
@@ -521,27 +537,6 @@ int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval){
     return -1;
 }
 
-int findVal(graph_t* head,int x, int y){
-    int tmpx=-1;
-    int tmpy=-1;
-    if (x>y){
-        tmpx = y;
-        tmpy = x;
-    } else {
-        tmpx = x;
-        tmpy = y;
-    }
-
-    while (head!=NULL){
-        if (head->x == tmpx){
-            if (head->y == tmpy){
-                return head->value;
-            }
-        }
-        head = head->next;
-    }
-    return 0;
-}
 
 void indexXY(genPath * head,backTrack_t **headBacktrack){
     int incrementer = 1;
@@ -604,35 +599,6 @@ int listLengthbt (backTrack_t* head){
     return count;
 }
 
-int listLengthG (graph_t* head){
-    graph_t * current = head;
-    int count =0;
-    while (current != NULL){
-        count ++;
-        //cout << "Monitor: " << current->x << "," << current->y << " -> " << current->value << endl;
-        current = current -> next;
-    }
-    return count;
-}
-
-int insertIntoGraph(graph_t** headG,int index,int counter,int value){
-    graph_t * newNode;
-    newNode = (graph_t *)malloc(sizeof(graph_t));
-    if (!newNode){
-        cout << "Memory error!" << endl;
-        return 0;
-    }
-
-    newNode->next = *headG;
-    newNode->x = index;
-    newNode->y = counter;
-    newNode->value = value;
-    *headG = newNode;
-    return 1;
-}
-
-
-
 int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX, int * neighborY, int *dist, int neighborCount){
     genPath* newNode;
     newNode = (genPath*) malloc(sizeof(genPath));
@@ -683,20 +649,6 @@ void reverseLinkedListbt (backTrack_t** head){
     return;
 }
 
-void reverseLinkedListG (graph_t** head){
-    graph_t* currentNode = *head;
-    graph_t* nextNode = NULL;
-    graph_t* prevNode = NULL;
-
-    while(currentNode!=NULL){
-		nextNode = currentNode->next;
-		currentNode->next = prevNode;
-		prevNode = currentNode;
-		currentNode = nextNode;
-	}
-	*head = prevNode;
-    return;
-}
 
 int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt){
     uint8_t x_check,y_check;
@@ -946,7 +898,6 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
         pri[u] = true;
         #pragma omp parallel shared (g,path,pri,dist,N,u) private(j)
         for (j = 0; j < N ;j++){
-                ///thisval = findVal(head,u,j);
                 thisval = findValFromGraph(vertices,u,j);
 
                 if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT_MAX) && (!pri[j])){
