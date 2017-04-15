@@ -26,20 +26,20 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
 /**
  * Specify the dimension of the terrain.
  */
-int LENGTH = 500;
-int WIDTH = 500;
+const int LENGTH = 100;
+const int WIDTH = 100;
 
 /**
  * Specify location of the start(source) node .
  */
-int startX = 1;
-int startY = 1;
+const int startX = 1;
+const int startY = 1;
 
 /**
  * Specify location of the end(destination) node.
  */
-int endX = 99;
-int endY = 99;
+const int endX = 99;
+const int endY = 99;
 
 /**
  * This data structure is used to store a pixel and
@@ -110,6 +110,16 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
 
 int main()
 {
+
+    /** 
+     * Perform basic check to see if start location
+     * and end locations fit the dimensions of the
+     * terrain.
+     */
+     if ((startX < 0) || (endX > WIDTH) || (startY < 0) || (endY > LENGTH)){
+        cout << "Please check dimensions of the terrain before starting... " << endl;
+     }
+ 
     int Ncount;
     int neighborsX[8],neighborsY[8];
     int tmpNeighborsX[8], tmpNeighborsY[8];
@@ -361,12 +371,17 @@ int main()
     listNode_t * adj[totalNodes];
     for (int i = 0 ; i < totalNodes; i++){
         adj[i] = (listNode_t*) malloc(sizeof(listNode_t));
-        adj[i]->vertexNum = i;
-        adj[i]->next = adj[i];
+        if( adj[i] == NULL){
+            cout << "Memory error. Couldn't create new nodes.. terminating..." << endl;
+            return 1;
+        }
+        adj[i]->vertexNum = -1;
     }
+       
 
-    /** Used for adding nodes in adjacency matrix*/
+    /** Used for adding nodes in adjacency list*/
     listNode_t * temp;
+    listNode_t * t1;
 
     int index;
     int counter = 0;
@@ -383,36 +398,53 @@ int main()
      *               drastically.
      *
      * - Revision 2: To reduce the time complexity from n^2 to
-     *               n, all x indices of the graph are stored in an array
-     *               of pointers. Each of these pointers point to a linked
+     *               n, all x indices of the graph are stored in an array.
+     *               Each of these pointers point to a linked
      *               list of its own.
      *
-     *              |0| ->  |1|->|2|->|6|.. (for representing (0,1),(0,2), (0,6), etc..)
-     *              |1| ->  |5|->|8|..      (||ly for representing (1,5),(1,8), etc..)
-     *              |2| ->
+     *              [0] ->  |1|->|2|->|6|->NULL.. (for representing (0,1),(0,2), (0,6), etc..)
+     *              [1] ->  |5|->|8|->NULL..      (||ly for representing (1,5),(1,8), etc..)
+     *              [2] ->
      *               .  ->
      *               .  ->
      *
      */
+     
     while (current!=NULL){
-         /// cout << "Neighbors of " << current->pXval << "," << current->pYval << " is.." << endl;
+        //cout << "Neighbors of " << current->pXval << "," << current->pYval << " is.." << endl;
         for (int thisIndex = 0; thisIndex<current->numNeighbors; thisIndex++){
-                ///cout << current->x_neighbors[thisIndex] << "," << current->y_neighbors[thisIndex] << endl;
+                //cout << current->x_neighbors[thisIndex] << "," << current->y_neighbors[thisIndex] << endl;
 
                 index = findIndex(headBacktrack,current->x_neighbors[thisIndex],current->y_neighbors[thisIndex]);
+                
 
                 /**
                  * Stores the upper half of the distance matrix only.
                  * Also eliminates any element 0 value element.
                  */
-                if (index<counter && index!=-1 && current->dists[thisIndex]!=0){
-
-                        temp = (listNode_t*) malloc(sizeof(listNode_t));
-                        temp->vertexNum = counter;
-                        temp->dist = current->dists[thisIndex];
-                        temp->next = adj[index];
-                        adj[index]->next = temp;
-
+                if ( (index>=0) && (counter<index) && (index > 0) ){
+                         //cout << "counter = " << counter << " index = " << index << " dist = " << current->dists[thisIndex] << endl;
+                         temp = adj[counter];
+                           if (temp->vertexNum == -1){
+                                temp->next = NULL;
+                                temp->vertexNum = index;
+                                temp->dist = current->dists[thisIndex];
+                           } else {                       
+                                while (temp->next!=NULL){
+                                    temp = temp->next;
+                                }
+                                listNode_t * newNode = (listNode_t*) malloc(sizeof(listNode_t));
+                                if(newNode == NULL){
+                                    cout << "Memory error. Couldn't create new nodes.. terminating..." << endl;
+                                    return 1;
+                                }
+                                newNode->next = NULL;
+                                newNode->vertexNum = index;
+                                newNode->dist = current->dists[thisIndex];
+                                temp->next = newNode;                           
+                           }
+                                      
+                                         
                         /// Insert value into linked list.
                         /// g[index][counter]
                         //if(!insertIntoGraph(&headG,index,counter,current->dists[thisIndex])){
@@ -421,11 +453,12 @@ int main()
                 }
         }
 
-        ///cout << "counter now is = " << counter << endl;
+        //cout << "counter now is = " << counter << endl;
         counter ++;
         current = current->next;
     }
-
+    
+    
     //reverseLinkedListG(&headG);
     cout << "Finished building the graph." << endl;
 
@@ -521,22 +554,6 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
        return;
 }
 
-/**
- * This function is used to find the [x,y] indices of
- * pixels from the corresponding linear indices.
- */
-int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval){
-    while(headBT!=NULL){
-        if(headBT->index==index){
-               *Xval = headBT->x;
-               *Yval = headBT->y;
-               return 1;
-        }
-        headBT = headBT->next;
-    }
-    return -1;
-}
-
 
 void indexXY(genPath * head,backTrack_t **headBacktrack){
     int incrementer = 1;
@@ -561,6 +578,24 @@ void indexXY(genPath * head,backTrack_t **headBacktrack){
     *headBacktrack = newNode;
 }
 
+
+/**
+ * This function is used to find the (x,y) indices of
+ * pixels from the corresponding linear indices.
+ */
+int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval){
+    while(headBT!=NULL){
+        if(headBT->index==index){
+               *Xval = headBT->x;
+               *Yval = headBT->y;
+               return 1;
+        }
+        headBT = headBT->next;
+    }
+    return -1;
+}
+
+
 /**
  * This function is used to find the linear index location of
  * the node in order to create the graph.
@@ -577,6 +612,9 @@ int findIndex (backTrack_t* headBT,int x, int y){
     return -1;
 }
 
+/**
+ * C++ templates have to be used here. Too lazy at the moment.
+ */
 int listLength (genPath* head){
     genPath * current = head;
     int count =0;
@@ -599,6 +637,11 @@ int listLengthbt (backTrack_t* head){
     return count;
 }
 
+/*
+ * ABSTACT: Method to insert data into the genPath linked list.
+ *          The linked list is used to generate the path from the
+ *          2-D terrain.
+ */
 int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX, int * neighborY, int *dist, int neighborCount){
     genPath* newNode;
     newNode = (genPath*) malloc(sizeof(genPath));
@@ -619,6 +662,9 @@ int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX
     return 1;
 }
 
+/**
+ * C++ templates have to be used here. Too lazy at the moment.
+ */
 void reverseLinkedList (genPath** head){
     genPath* currentNode = *head;
     genPath* nextNode = NULL;
@@ -649,7 +695,9 @@ void reverseLinkedListbt (backTrack_t** head){
     return;
 }
 
-
+/**
+ * ABSTRACT : 
+ */
 int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt){
     uint8_t x_check,y_check;
     int duplicate=0;
@@ -675,7 +723,7 @@ int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt
     int delCount = 0;
     for (int i=0;i<openListcnt;i++){
        if (checkedOff[i]==1){
-           // cout << "DUBLICATE " << i << " " << listX[tmpOpenListCountX] << "," << listY[tmpOpenListCountX] << endl;
+           // cout << "DUPLICATE " << i << " " << listX[tmpOpenListCountX] << "," << listY[tmpOpenListCountX] << endl;
             tmpOpenListCountX = removeElement(listX,i-delCount,tmpOpenListCountX);
             tmpOpenListCountY = removeElement(listY,i-delCount,tmpOpenListCountY);
             tmpDistCount = removeElement(distXY,i-delCount,tmpDistCount);
@@ -701,7 +749,7 @@ int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt
    *           a 0 indexed value. To remove the 3rd element
    *           from the array, pos should be 2.
    *     numElements = Total number of elements of the array.
-   * OUTPUTS:
+   * INPUTS:
    *    rnumElemnts = Number of elements after pop().
    */
 int removeElement(uint8_t *arrayList, int pos, int numElements){
@@ -710,23 +758,24 @@ int removeElement(uint8_t *arrayList, int pos, int numElements){
    return rnumElements;
 }
 
-/** ABSTRACT: This function is used to find the neighbors of
- *           a given pixel in the grid. Neighbor pixels found
- *            in closed list are omitted.
- *
- * INPUTS: x - Pixel x location in the grid
- *          y - Pixel y location in the grid
- *          neighborX - An empty 8 element array to store the X indices neighboring pixels.
- *          neighborY - An empty 8 element array to store the Y indices of neighboring pixels.
- *          dist - An 8 element empty array.
- *          length - Length of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
- *          width - Width of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
- *          closedListX - X indices of the elements of the closed list.
- *          closedListY - Y indices of the elements of the closed list.
- *          NclosedList - Number of element sin the closed list.
- *
- * OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
- */
+/** 
+  * ABSTRACT: This function is used to find the neighbors of
+  *           a given pixel in the grid. Neighbor pixels found
+  *            in closed list are omitted.
+  *
+  * INPUTS: x - Pixel x location in the grid
+  *          y - Pixel y location in the grid
+  *          neighborX - An empty 8 element array to store the X indices neighboring pixels.
+  *          neighborY - An empty 8 element array to store the Y indices of neighboring pixels.
+  *          dist - An 8 element empty array.
+  *          length - Length of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
+  *          width - Width of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
+  *          closedListX - X indices of the elements of the closed list.
+  *          closedListY - Y indices of the elements of the closed list.
+  *          NclosedList - Number of element sin the closed list.
+  *
+  * OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
+  */
 int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, uint8_t* closedListX, uint8_t* closedListY, int NclosedList){
 
     int validX[3],validY[3];
@@ -766,22 +815,22 @@ int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int 
     for (int i = 0; i < 3; i++){
         for (int j = 0; j < 3; j++){
             if (validX[i] && validY[j] && !(i==1&&j==1)){
-            dontConsider = 0;
-              for (int k=0 ;k < NclosedList; k++){
-                if (xVals[i] == closedListX[k] && yVals[j] == closedListY[k]){
-                    dontConsider = 1;
+                dontConsider = 0;
+                for (int k=0 ;k < NclosedList; k++){
+                    if (xVals[i] == closedListX[k] && yVals[j] == closedListY[k]){
+                        dontConsider = 1;
+                    }
                 }
-              }
-              if (!dontConsider){
-                neighborX[Ncount] = xVals[i];
-                neighborY[Ncount] = yVals[j];
-                if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
-                    dist[Ncount] = distToXY + 14;
-                } else {
-                    dist[Ncount] = distToXY + 10;
+                if (!dontConsider){
+                    neighborX[Ncount] = xVals[i];
+                    neighborY[Ncount] = yVals[j];
+                    if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
+                        dist[Ncount] = distToXY + 14;
+                    } else {
+                        dist[Ncount] = distToXY + 10;
+                    }
+                    Ncount++;
                 }
-                Ncount++;
-              }
             }
         }
     }
@@ -789,6 +838,24 @@ int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int 
     return Ncount;
 }
 
+
+/** 
+  * ABSTRACT: This function is similar to the above implementation but it
+  *           does not remove elements that are already present in the closed list.
+  *
+  * INPUTS: x - Pixel x location in the grid
+  *          y - Pixel y location in the grid
+  *          neighborX - An empty 8 element array to store the X indices neighboring pixels.
+  *          neighborY - An empty 8 element array to store the Y indices of neighboring pixels.
+  *          dist - An 8 element empty array.
+  *          length - Length of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
+  *          width - Width of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
+  *          closedListX - X indices of the elements of the closed list.
+  *          closedListY - Y indices of the elements of the closed list.
+  *          NclosedList - Number of element sin the closed list.
+  *
+  * OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
+  */
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width){
 
     int validX[3],validY[3];
@@ -843,7 +910,7 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
 }
 
 int findMinLoc(int dist[],bool pri[],int N){
-    int minval = INT_MAX;
+    int minval = INT32_MAX;
     int minloc = 0;
 
     for (int i = 0; i< N; i++){
@@ -855,14 +922,63 @@ int findMinLoc(int dist[],bool pri[],int N){
     return minloc;
 }
 
+/**
+  * ABSTRACT : This function is used to obatin the value
+  *            of the (i,j)th element from the adjacency
+  *            list data structure
+  */
 int findValFromGraph(listNode_t **vertices, int x,int y){
-    do{
-        if(vertices[x]->vertexNum==y){
-            return vertices[x]->dist;
+
+    /*
+     * Make sure that x index is lesser than y 
+     * index. This is because the adjacency list
+     * data structure is build assuming that the
+     * matix is symmetric. This is why the indices
+     * are swapped.
+     */
+    int swapMe;
+    if (x > y){
+        swapMe = x;
+        x = y;
+        y = swapMe;
+    }
+    
+    
+    listNode_t * temp = (listNode_t *) malloc(sizeof(listNode_t));
+    temp = vertices[x]; /// Point to the head of the x-th linked list.
+
+    /// Loop through the LinkedList until the last element
+    while(temp->next!=NULL){
+        if (temp->vertexNum == y)
+        {
+            return temp->dist;
         }
-        vertices[x] = vertices[x]->next;
-    }while(vertices[x]->vertexNum!=x);
+        temp = temp->next;
+    }
+    
+    /// Since the n-th index contains valid data,
+    ///  check for the nth index as well.
+    if (temp->vertexNum == y)
+    {
+            return temp->dist;
+    }
+    
+    /**
+     * If the n-th index is not found then the data
+     * at that position is 0. This is due to the design
+     * of the data structure.
+     */
     return 0;
+}
+
+int findNValEqU(int u,int dist[],bool pri[],int N){
+    int count = 0;
+    for (int i = 0; i< N; i++){
+        if(!pri[i] && dist[i]<=u){
+            count ++;
+        }
+    }
+    return count;
 }
 
 int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance){
@@ -873,11 +989,11 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     int path[N];
     //uint8_t g[N][N];
     //memset( g, 0, N*N*sizeof(uint8_t) );
-    //struct timeval start_time, stop_time, elapsed_time;  // timers
+    struct timeval start_time, stop_time, elapsed_time;  // timers
 
     /// Initialize all values in the queue infinity.
     for (i = 0 ; i < N ; i++){
-        dist[i] = INT_MAX; /// Infinity
+        dist[i] = INT32_MAX; /// Infinity
         pri[i] = false;
         path[i] = 0;
     }
@@ -890,17 +1006,29 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
 
 
     /// Path finding..
-    //gettimeofday(&start_time,NULL); // Unix timer
+    gettimeofday(&start_time,NULL); // Unix timer
 
     int thisval;
+    int count;
+   
+    // Print distance matrix
+    //int val;
+    //for (i=0 ; i < N ; i++){
+    //    for (j=0; j< N; j++){
+    //        cout << findValFromGraph(vertices,i,j) << " ";
+    //    }
+    //    cout << endl;
+    //}
+    
     for (i = 0 ; i < N-1 ; i++){
         u = findMinLoc(dist,pri,N);
         pri[u] = true;
-        #pragma omp parallel shared (g,path,pri,dist,N,u) private(j)
+        
+     
         for (j = 0; j < N ;j++){
                 thisval = findValFromGraph(vertices,u,j);
-
-                if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT_MAX) && (!pri[j])){
+                //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
+                if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
                 //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                     /// update queue
                     dist[j] = thisval + dist[u];
@@ -909,19 +1037,23 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
                 }
         }
         cout << "On iteration: " << i << "/" << N-1 << endl;
+           
+
     }
-//    gettimeofday(&stop_time,NULL);
-//    timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
-//    printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
+    
+
+    //gettimeofday(&stop_time,NULL);
+    //timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
+    //printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
 
     //for (i = 0 ; i < N ; i++){
-        //cout << dist[i] <<endl;
+    //    cout << dist[i] <<endl;
     //}
     *pathDistance = dist[N-1];
 
     //cout << "stored in path format --> " << endl;
     //for (i = 0 ; i < N ; i++){
-    //    cout << path[i] <<endl;
+     //   cout << path[i] <<endl;
     //}
 
 
@@ -950,8 +1082,8 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     for (i = 0; i < N; i++){
         if (finalPath[i]!=-1){
             *shortestPath++ = finalPath[i];
-            Nvals = i;
-            cout << finalPath[i] <<endl;
+            Nvals = i;                    
+            //cout << finalPath[i] <<endl;   
         }
     }
     return ++Nvals;
