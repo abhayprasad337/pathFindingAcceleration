@@ -12,3 +12,16 @@
 	<sys/time.h>
 	<stdint.h>
 
+1492384292 source:d:\fourth_sem\finalproject\codebase\pathfindingacceleration\main.cpp
+	<iostream>
+	<string>
+	<stdlib.h>
+	<cstddef>
+	<cstring>
+	<fstream>
+	<limits>
+	<map>
+	<omp.h>
+	<sys/time.h>
+	<stdint.h>
+
