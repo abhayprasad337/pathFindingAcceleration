@@ -1164,10 +1164,10 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     }
 
 
-    //gettimeofday(&stop_time,NULL);
-    //timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
-    //printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
-
+    gettimeofday(&stop_time,NULL);
+    timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
+    cout << "Total time was " << elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0 << " seconds." << endl;
+    
     //for (i = 0 ; i < N ; i++){
     //    cout << dist[i] <<endl;
     //}
