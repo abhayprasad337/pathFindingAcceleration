@@ -21,8 +21,8 @@ using namespace std;
 /**
  * Specify the dimension of the terrain.
  */
-const int LENGTH = 1000;
-const int WIDTH = 1000;
+const int LENGTH = 50;
+const int WIDTH = 50;
 
 /**
  * Specify location of the start(source) node .
@@ -34,7 +34,9 @@ const int startY = 1;
  * Specify location of the end(destination) node.
  */
 const int endX = 1;
-const int endY = 140;
+const int endY = 40;
+
+
 
 /**
  * This data structure is used to store a pixel and
@@ -102,7 +104,7 @@ int findIndex (backTrack_t* headBT,int x, int y);
 void indexXY(genPath * head,backTrack_t **headBacktrack);
 int findMinLoc(int dist[],bool pri[],int N);
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval);
-void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth);
+void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth, int Nobstacles);
 int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance);
 int addToClosedList(listNodeNoDist_t ** closedListX, int startX, int startY);
 int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width,listNodeNoDist_t ** closedListX);
@@ -111,6 +113,12 @@ int removeElement(uint8_t *arrayList, int pos, int numElements);
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width);
 int isXYInClosedList(listNodeNoDist_t ** closedListX,int x,int y);
 
+/**
+ * Specify obstacles to place on the terrain.
+ */
+ int Nobstacles = 5;
+ const int obstaclesX[5]={0,1,2,3,4};
+ const int obstaclesY[5]={10,10,10,10,10};
 
 int main()
 {
@@ -134,6 +142,8 @@ int main()
     int MAX_OPEN_LIST_COUNT = 4000;
     int MAX_TMP_LIST_COUNT = MAX_OPEN_LIST_COUNT;
 
+    
+
 
     listNodeNoDist_t * closedListX[MAX_CLOSED_LIST_COUNT];
     for (int i=0; i<MAX_CLOSED_LIST_COUNT; i++){
@@ -145,7 +155,12 @@ int main()
         closedListX[i]->vertexNum = -1;
         closedListX[i]->next = NULL;
     }
-
+    
+    
+    for (int iCount = 0; iCount < Nobstacles; iCount++){
+        addToClosedList(&closedListX[0],obstaclesX[iCount],obstaclesY[iCount]);
+    }
+    
     uint8_t openListsX[MAX_OPEN_LIST_COUNT];
     uint8_t openListsY[MAX_OPEN_LIST_COUNT];
     uint8_t openListDists[MAX_OPEN_LIST_COUNT];
@@ -507,7 +522,7 @@ int main()
 
     /** Print result to file so that it can be graphically shown */
     cout << "Printing result to file..." << endl;
-    printPath (startX, startY, endX, endY, &Xval[0], &Yval[0], Nvals, LENGTH, WIDTH);
+    printPath (startX, startY, endX, endY, &Xval[0], &Yval[0], Nvals, LENGTH, WIDTH,Nobstacles);
 
     return 0;
 }
@@ -558,7 +573,7 @@ int addToClosedList(listNodeNoDist_t ** closedListX, int x, int y){
  *
  * OUTPUTS : Writes the path into file -> path.txt
  */
-void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth){
+void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth, int Nobstacles){
 
         /// Print into file -> path.txt
         ofstream myfile;
@@ -579,7 +594,15 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
                     isPath = 1;
                     notPath = 1;
                  }
-
+                 
+                 for (int pi=0; pi < Nobstacles; pi++)
+                 {
+                    if (obstaclesX[pi]==i && obstaclesY[pi]==j){
+                        myfile << "200,";
+                        isPath = 1;
+                        notPath = 1;
+                    }
+                 }
                  if (!notPath){
                     for (int thisIndex = 0;thisIndex < pathLength; thisIndex++){
                         if (pathX[thisIndex]==i){
@@ -1000,7 +1023,7 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
 }
 
 int findMinLoc(int dist[],bool pri[],int N){
-    int minval = INT_MAX;
+    int minval = INT32_MAX;
     int minloc = 0;
 
     for (int i = 0; i< N; i++){
@@ -1094,7 +1117,7 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
 
     /// Initialize all values in the queue infinity.
     for (i = 0 ; i < N ; i++){
-        dist[i] = INT_MAX; /// Infinity
+        dist[i] = INT32_MAX; /// Infinity
         pri[i] = false;
         path[i] = 0;
     }
@@ -1127,7 +1150,7 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
         for (j = 0; j < N ;j++){
                 thisval = findValFromGraph(vertices,u,j);
                 //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;
-                if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT_MAX) && (!pri[j])){
+                if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
                 //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                     /// update queue
                     dist[j] = thisval + dist[u];
