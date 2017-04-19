@@ -17,7 +17,7 @@ ABSTRACT: This code is used to find the shortest path between two points
 #include <stdint.h>
 
 
-#define IS_SEQ 1
+
 
 using namespace std;
 
@@ -41,8 +41,10 @@ const int startY = 1;
 /**
  * Specify location of the end(destination) node.
  */
-const int endX = 40;
-const int endY = 40;
+const int endX = 1;
+const int endY = 99;
+
+int IS_SEQ;
 
 /**
  * This data structure is used to store a pixel and
@@ -109,10 +111,13 @@ void indexXY(genPath * head,backTrack_t **headBacktrack);
 int findMinLoc(int dist[],bool pri[],int N);
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval);
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth);
-int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance);
+int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance, int max_parallel_threads, int min_parallel_threads);   
 
-int main()
+
+int main(int argc, char *argv[])
 {
+    
+    IS_SEQ = atoi(argv[3]);
 
     /** 
      * Perform basic check to see if start location
@@ -121,6 +126,7 @@ int main()
      */
      if ((startX < 0) || (endX > WIDTH) || (startY < 0) || (endY > LENGTH)){
         cout << "Please check dimensions of the terrain before starting... " << endl;
+        return 1;
      }
  
     int Ncount;
@@ -470,15 +476,14 @@ int main()
     memset(shortestPath,-1,totalNodes*sizeof(int));
     int Nvals;
 
-
-    Nvals = findShortestDijkstra(&adj[0], totalNodes, &shortestPath[0], &pathDistance);
+    Nvals = findShortestDijkstra(&adj[0], totalNodes, &shortestPath[0], &pathDistance,atoi(argv[1]),atoi(argv[2]));
 
     int Xval[Nvals],Yval[Nvals];
     for (int i = 0; i < Nvals; i++){
         Xval[i] = -1;
         Yval[i] = -1;
         if(findXYfromIndex (headBacktrack, shortestPath[i],&Xval[i],&Yval[i])){
-                cout << shortestPath[i] << " ---> " << Xval[i] << "," << Yval[i] << endl;
+               cout << shortestPath[i] << " ---> " << Xval[i] << "," << Yval[i] << endl;
         } else {
                 cout << "Point not found in linked list" << endl;
         }
@@ -912,35 +917,6 @@ int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, in
     return Ncount;
 }
 
-int findMinLoc(int dist[],bool pri[],int N){
-    int minval = INT32_MAX;
-    int minloc = 0;
-
-    for (int i = 0; i< N; i++){
-        if(!pri[i] && dist[i]<minval){
-            minval = dist[i];
-            minloc = i;
-        }
-    }
-    return minloc;
-}
-
-int findMinVal(int dist[],bool U[],int delta_node_base, int N){
-
-    int minval = INT32_MAX;
-    int minloc = 0;
-    
-    #pragma omp parallel for reduction (min:minval) schedule(static,N)
-    for (int i = 0; i < N; i++){
-        if(!U[i] && dist[i] < minval){
-            // cout << "dist[i] " << dist[i] << " minval = " << minval << endl;
-            minval = dist[i]+delta_node_base;
-        }
-    }
-
-    return minval;
-}
-
 /**
   * ABSTRACT : This function is used to obatin the value
   *            of the (i,j)th element from the adjacency
@@ -990,9 +966,25 @@ int findValFromGraph(listNode_t **vertices, int x,int y){
     return 0;
 }
 
+
+
+int findMinLoc(int dist[],bool pri[],int N, int* minvaltemp){
+    int minval = INT32_MAX;
+    int minloc = 0;
+
+    for (int i = 0; i< N; i++){
+        if(!pri[i] && dist[i]<minval){
+            minval = dist[i];
+            minloc = i;
+        }
+    }
+    *minvaltemp = minval;
+    return minloc;
+}
+
 int findNValEqU(int minval, int dist[],bool pri[],int N){
     int count = 0;
-    #pragma omp parallel for reduction(+:count) schedule(static,N)
+    #pragma omp parallel for reduction(+:count) schedule(auto)
     for (int i = 0; i< N; i++){
         if(!pri[i] && dist[i]<=minval){
             count ++;
@@ -1001,13 +993,12 @@ int findNValEqU(int minval, int dist[],bool pri[],int N){
     return count;
 }
 
-
 /** 
  * ABSTRACT : Given an adjacency matrix, this function computes the shorest path from the
  *            first node to the last node in the list.
  * ERROR CODE : retunrs -1
  */
-int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance){
+int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance, int max_parallel_threads, int min_parallel_threads){
 
 
     int i,j;
@@ -1020,7 +1011,7 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     
     //uint8_t g[N][N];
     //memset( g, 0, N*N*sizeof(uint8_t) );
-    struct timeval start_time, stop_time, elapsed_time;  // timers
+    struct timeval start_time, stop_time, elapsed_time,t1,t2,t3,t4,t5,t6;  // timers
 
 
     /// Initialize all values in the queue infinity.
@@ -1046,48 +1037,60 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
 
     
     
-    /// Path finding..
-    gettimeofday(&start_time,NULL); // Unix timer
-
+    /// Path finding..    
+    double allTime0=0;
+    double allTime1=0; 
     
-#if IS_SEQ==1
-
+if (IS_SEQ==1){
+   
+    int threadedCount = 0;
     int minval = -1;
     int nCount = -1;
     int letsParallellize[N];
-    int max_parallel_threads = 200;
-    int min_parallel_threads = 3;    
+//    int max_parallel_threads = 10000;
+//    int min_parallel_threads = 900;
+
+    if (max_parallel_threads < min_parallel_threads ){
+        cout <<  "max_parallel_threads = " << max_parallel_threads << "is less than min_parallel_threads = " << min_parallel_threads << " , terminating ... " << endl;
+        return -1;
+    }
+    
     int isThreaded = 0;
     omp_set_num_threads(max_parallel_threads);
     cout << "I can run on a maximum of " <<  omp_get_max_threads()  << " threads." << endl;
-    
+    //cout << "I am currently running on device " << omp_get_default_device() << "." << endl;
+    cout << "I can run on " << omp_get_num_procs() << " number of cores. " << endl;
+ 
     for (i = 0 ; i < N ; i++){
         letsParallellize[i] = false;
     }
     
-    
-    
-    minval = findMinVal(dist,pri,0,N);
-    
-    
-    int debugcnt;
-    while (minval != INT32_MAX){
-    //for (i = 0 ; i < N-1 ; i++){
-        //cout << "************* " << debugcnt++ << "*************" << endl; 
-        if (debugcnt > 10000){
-            cout << "debugCnt exceeded limit, terminating... " << endl;
-            return -1;
-        }
-        u = findMinLoc(dist,pri,N);   
-        minval = findMinVal(dist,pri,0,N); 
-        //cout << "minVal = " << minval << endl;      
-        nCount = findNValEqU(u,dist,pri,N);
+              
+    int thisCountThread = 0;
 
+    gettimeofday(&start_time,NULL); // Unix timer
+ 
+    while (minval != INT32_MAX){
+
+        u = findMinLoc(dist,pri,N,&minval);         
+        
+	    gettimeofday(&t1,NULL);  
+  
+        nCount = findNValEqU(u,dist,pri,N);
+	
+	    gettimeofday(&t2,NULL);
+        timersub(&t2, &t1, &t3); // Unix time subtract
+	    allTime0 +=  t3.tv_sec+t3.tv_usec/1000000.0;
+	
+	
+//	cout << "time taken for findNValEqU = " << t3.tv_sec+t3.tv_usec/1000000.0 << endl;
+#if 1
         if (nCount > max_parallel_threads){
                 cout << "There are more than " << max_parallel_threads << " nodes with least values.. expect major errors!" << endl;
-                //return -1;
+                cout << "Set max_parallel_threads to be greater than " << nCount << endl;
+                return -1;
         }
-      
+#endif         
         
         /// nCount can be used to thread or not thread!
         
@@ -1095,37 +1098,39 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
          * Accumulate threads that can be run in parallel. 
          * These would be the threads that have their distances
          * equal to the value of minval (minimum)
+         *   
+         * Threading is performed only when 
+         * the number of min values is between
+         * 100(min_parallel_threads) - 200 (max_parallel_threads).
          */
          
-         /**
-          * Threading is performed only when 
-          * the number of min values is between
-          * 100(min_parallel_threads) - 200 (max_parallel_threads).
-          */
-         isThreaded = 0;
-         if (nCount > min_parallel_threads) {  
+         if (nCount > min_parallel_threads) { 
              //cout << "nCount = " << nCount << endl;
-             int thisCountThread = 0;
-             
+             thisCountThread = 0;                      
+             memset(&letsParallellize[0],-1,sizeof(int)*N);
+             #pragma omp parallel for
              for (int thisThread = 0 ; thisThread < N ; thisThread++){
-             
-                letsParallellize[thisThread] = -1;
-                
-                if (!pri[thisThread] && minval == dist[thisThread] && thisCountThread < max_parallel_threads){                    
+                //letsParallellize[thisThread] = -1;                
+                if ((!pri[thisThread]) && (minval == dist[thisThread])){        // && (thisCountThread < max_parallel_threads)   
+                    #pragma omp critical
+                    {   
                     letsParallellize[thisCountThread] = thisThread;
                     pri[u] = true; // Settle the node 
                     thisCountThread++;
-                }
-                
+                    }                   
+                }                
              }
              
+             threadedCount ++;  
              isThreaded = 1;
           } else {
              isThreaded = 0;
           }
-          
-//          if (isThreaded == 1)
-//         cout << "isThreaded = " << isThreaded << endl;
+          //cout << "nCount = " << nCount << endl;
+          //cout << "isThreaded =" << isThreaded << endl;
+
+//	cout << "Time taken to compute overhead = " << t6.tv_sec+t6.tv_usec/1000000.0 << endl;
+
          
          /**
           * From the potential nodes that can be parallelized, 
@@ -1147,93 +1152,78 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
            * n number of nodes (n == T) having minimum distance value
            * at each iteration. 
            */
+           int tid;
+           gettimeofday(&t4,NULL);
            
-            if (isThreaded) {
-               int tid;
+           if (isThreaded) {
+              
+               //cout << "Threading is active.. " << endl;
                omp_set_dynamic(0); 
-               omp_set_num_threads(nCount-1); 
+               omp_set_num_threads(thisCountThread-1); 
                
                 #pragma omp parallel private(thisval,j,tid)
                 {
-               
-                tid = omp_get_thread_num();
-                
-                if (letsParallellize[tid]>0) {
-                 
-                    //cout << "Thread at tid = " << tid << " -> " << letsParallellize[tid] << endl;
-                    
-                    for (j=0;j<N;j++){
-                    /// Relax this node and mark as settled
-                    thisval = findValFromGraph(vertices,letsParallellize[tid],j);
-                    if ((thisval) && (thisval + dist[letsParallellize[tid]] < dist[j]) && (dist[letsParallellize[tid]]!=INT32_MAX) && (!pri[j]) && (letsParallellize[tid]>-1)){
-                        #pragma omp critical
-                        {
-                            //cout << "Inside critical!" << endl;
-                            dist[j] = thisval + dist[letsParallellize[tid]];
-                            path[j] = letsParallellize[tid];
-                                                   
-                        }
+                    tid = omp_get_thread_num();
+                             
+                    if (letsParallellize[tid]>0) {                     
+                        //cout << "Thread at tid = " << tid << " -> " << letsParallellize[tid] << endl;
+                        //#pragma omp parallel for private(thisval)
+                        for (j=0;j<N;j++){
+                        /// Relax this node and mark as settled
+                            thisval = findValFromGraph(vertices,letsParallellize[tid],j);
+                            if ((thisval) && (thisval + dist[letsParallellize[tid]] < dist[j]) ){ //&& (dist[letsParallellize[tid]]!=INT32_MAX) (!pri[j]) && && (letsParallellize[tid]>-1)
+                                #pragma omp critical
+                                {
+                                    //cout << "Inside critical!" << endl;
+                                    dist[j] = thisval + dist[letsParallellize[tid]];
+                                    path[j] = letsParallellize[tid];                                                   
+                                }
 
-                    }       
-                    }
+                            }       
+                        }
+                     }
                  }
-                 }  
-                 
-                /* for (int tid = 0; tid < N; tid++){
-                    if (letsParallellize[tid]>0) {
-                    for (j=0;j<N;j++){
-                    /// Relax this node and mark as settled
-                    thisval = findValFromGraph(vertices,letsParallellize[tid],j);
-                    if ((thisval) && (thisval + dist[letsParallellize[tid]] < dist[j]) && (dist[letsParallellize[tid]]!=INT32_MAX) && (!pri[j]) && (letsParallellize[tid]>-1)){
-                        //#pragma omp critical
-                        {
-                            cout << "Inside critical!" << endl;
-                            dist[j] = thisval + dist[letsParallellize[tid]];
-                            path[j] = letsParallellize[tid];
-                                                   
-                        }
-
-                    }       
-                    }                    
-                    }
-                 }*/
-                
-                
             } else {
-                pri[u] = true;
-                for (j = 0; j < N ;j++){
-                    thisval = findValFromGraph(vertices,u,j);
+            
+                pri[u] = true; // Node was not previously settled, settling now!
+                for (j = 0; j < N ;j++){                
+                    thisval = findValFromGraph(vertices,u,j);	
                     //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
                     if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
-                    //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
+                        //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                         /// update queue
                         dist[j] = thisval + dist[u];
                         path[j] = u;
-                    // }
+                        // }
                     }
                 }
             
             }
-            
+            gettimeofday(&t5,NULL);                    
+            timersub(&t5, &t4, &t6); // Unix time subtract
+            allTime1 += t6.tv_sec+t6.tv_usec/1000000.0;	
            
             
            
            
     }
-    
-    
-#else
-    cout << "Running sequential code " << endl;
-    //int thisval;
-    int count;
 
+ 
+    cout << "****************** Ran iParallel code ****************** " << endl;
+    cout << "Code entered parallel region " << threadedCount << " times." << endl;
+} else {
+
+    
+    //int thisval;
+    int dummy;
+    gettimeofday(&start_time,NULL); // Unix timer
     for (i = 0 ; i < N-1 ; i++){
-        u = findMinLoc(dist,pri,N);
+        u = findMinLoc(dist,pri,N,&dummy);
         pri[u] = true;
         
      
         for (j = 0; j < N ;j++){
-                thisval = findValFromGraph(vertices,u,j);
+                thisval = findValFromGraph(vertices,u,j);              
                 //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
                 if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
                 //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
@@ -1243,18 +1233,23 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
                // }
                 }
         }
-        cout << "On iteration: " << i << "/" << N-1 << endl;
+       // cout << "On iteration: " << i << "/" << N-1 << endl;
            
 
     }
+    cout << "****************** Ran sequential code ****************** " << endl;
     
-#endif
-   
+}
+  
+  
+    cout << "All time 0= " << allTime0 << endl;
+    cout << "All time 1= " << allTime1 << endl;
+    
+     
     gettimeofday(&stop_time,NULL);
        
     timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
-
 
     //for (i = 0 ; i < N ; i++){
         //cout << dist[i] <<endl;
