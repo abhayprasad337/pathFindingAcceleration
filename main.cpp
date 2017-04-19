@@ -42,7 +42,7 @@ const int startY = 1;
  * Specify location of the end(destination) node.
  */
 const int endX = 1;
-const int endY = 99;
+const int endY = 80;
 
 int IS_SEQ;
 
@@ -968,7 +968,7 @@ int findValFromGraph(listNode_t **vertices, int x,int y){
 
 
 
-int findMinLoc(int dist[],bool pri[],int N, int* minvaltemp){
+inline int findMinLoc(int dist[],bool pri[],int N, int* minvaltemp){
     int minval = INT32_MAX;
     int minloc = 0;
 
@@ -982,7 +982,7 @@ int findMinLoc(int dist[],bool pri[],int N, int* minvaltemp){
     return minloc;
 }
 
-int findNValEqU(int minval, int dist[],bool pri[],int N){
+inline int findNValEqU(int minval, int dist[],bool pri[],int N){
     int count = 0;
     #pragma omp parallel for reduction(+:count) schedule(auto)
     for (int i = 0; i< N; i++){
@@ -1032,14 +1032,12 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     
     
     int u;
-
     int thisval=0;
-
-    
-    
+    double allTime1=0; 
+    int debug_counter = 0;    
+    int maxNcount = 0;
     /// Path finding..    
     double allTime0=0;
-    double allTime1=0; 
     
 if (IS_SEQ==1){
    
@@ -1069,9 +1067,11 @@ if (IS_SEQ==1){
     int thisCountThread = 0;
 
     gettimeofday(&start_time,NULL); // Unix timer
- 
-    while (minval != INT32_MAX){
+    
+    while (minval < INT32_MAX){
 
+        debug_counter++;        
+        
         u = findMinLoc(dist,pri,N,&minval);         
         
 	    gettimeofday(&t1,NULL);  
@@ -1079,9 +1079,13 @@ if (IS_SEQ==1){
         nCount = findNValEqU(u,dist,pri,N);
 	
 	    gettimeofday(&t2,NULL);
+	    
         timersub(&t2, &t1, &t3); // Unix time subtract
 	    allTime0 +=  t3.tv_sec+t3.tv_usec/1000000.0;
-	
+	    
+	    
+	    if (nCount > maxNcount) maxNcount = nCount;
+	    
 	
 //	cout << "time taken for findNValEqU = " << t3.tv_sec+t3.tv_usec/1000000.0 << endl;
 #if 1
@@ -1115,21 +1119,21 @@ if (IS_SEQ==1){
                     #pragma omp critical
                     {   
                     letsParallellize[thisCountThread] = thisThread;
-                    pri[u] = true; // Settle the node 
+                    pri[thisThread] = true; // Settle the node 
                     thisCountThread++;
                     }                   
                 }                
-             }
-             
+             }             
              threadedCount ++;  
              isThreaded = 1;
           } else {
+             pri[u] = true; // Why not settle the node here itself?
              isThreaded = 0;
           }
           //cout << "nCount = " << nCount << endl;
           //cout << "isThreaded =" << isThreaded << endl;
 
-//	cout << "Time taken to compute overhead = " << t6.tv_sec+t6.tv_usec/1000000.0 << endl;
+           //	cout << "Time taken to compute overhead = " << t6.tv_sec+t6.tv_usec/1000000.0 << endl;
 
          
          /**
@@ -1153,23 +1157,24 @@ if (IS_SEQ==1){
            * at each iteration. 
            */
            int tid;
-           gettimeofday(&t4,NULL);
+           //cout << "Threading is active.. " << endl;
+           omp_set_dynamic(0); 
+           omp_set_num_threads(thisCountThread-1);
+
            
-           if (isThreaded) {
-              
-               //cout << "Threading is active.. " << endl;
-               omp_set_dynamic(0); 
-               omp_set_num_threads(thisCountThread-1); 
-               
+           gettimeofday(&t4,NULL);
+           if (isThreaded) {  
+                            
                 #pragma omp parallel private(thisval,j,tid)
                 {
                     tid = omp_get_thread_num();
                              
-                    if (letsParallellize[tid]>0) {                     
+                    //if (letsParallellize[tid]>0) {                     
                         //cout << "Thread at tid = " << tid << " -> " << letsParallellize[tid] << endl;
                         //#pragma omp parallel for private(thisval)
                         for (j=0;j<N;j++){
                         /// Relax this node and mark as settled
+                            if (!pri[j]){
                             thisval = findValFromGraph(vertices,letsParallellize[tid],j);
                             if ((thisval) && (thisval + dist[letsParallellize[tid]] < dist[j]) ){ //&& (dist[letsParallellize[tid]]!=INT32_MAX) (!pri[j]) && && (letsParallellize[tid]>-1)
                                 #pragma omp critical
@@ -1180,12 +1185,13 @@ if (IS_SEQ==1){
                                 }
 
                             }       
+                            }
                         }
-                     }
+                    // }
                  }
+                 
             } else {
-            
-                pri[u] = true; // Node was not previously settled, settling now!
+                
                 for (j = 0; j < N ;j++){                
                     thisval = findValFromGraph(vertices,u,j);	
                     //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
@@ -1197,15 +1203,11 @@ if (IS_SEQ==1){
                         // }
                     }
                 }
-            
             }
             gettimeofday(&t5,NULL);                    
             timersub(&t5, &t4, &t6); // Unix time subtract
-            allTime1 += t6.tv_sec+t6.tv_usec/1000000.0;	
-           
-            
-           
-           
+            allTime1 += t6.tv_sec+t6.tv_usec/1000000.0;
+            	                  
     }
 
  
@@ -1221,7 +1223,6 @@ if (IS_SEQ==1){
         u = findMinLoc(dist,pri,N,&dummy);
         pri[u] = true;
         
-     
         for (j = 0; j < N ;j++){
                 thisval = findValFromGraph(vertices,u,j);              
                 //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
@@ -1241,16 +1242,17 @@ if (IS_SEQ==1){
     
 }
   
-  
-    cout << "All time 0= " << allTime0 << endl;
-    cout << "All time 1= " << allTime1 << endl;
-    
-     
     gettimeofday(&stop_time,NULL);
+   
+    cout << "Debug counter (time - ignore) = " <<  debug_counter << ". Value of N-1 = " << N-1 << endl;
+    cout << "All time 0= " << allTime0 << endl;
+    //cout << "All time 1= " << allTime1 << endl;
+    cout << "MAX nCount (time - ignore)=  " << maxNcount << endl;   
        
     timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
-
+    cout << "All time 1= " << allTime1 << endl;
+    
     //for (i = 0 ; i < N ; i++){
         //cout << dist[i] <<endl;
     //}
