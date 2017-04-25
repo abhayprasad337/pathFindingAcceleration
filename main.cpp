@@ -1,7 +1,9 @@
-/*
-ABSTRACT: This code is used to find the shortest path between two points
-          in a 2-D plane.
-*/
+/**
+ * ABSTRACT: This code is used to find the shortest path between two points
+ *         in a 2-D plane.
+ * AUTHOR: ABHAY PRASAD (abhayprasad.337@gmail.com)
+ *
+ */
 
 
 #include <iostream>
@@ -22,7 +24,7 @@ using namespace std;
  * Specify the dimension of the terrain.
  */
 const int LENGTH = 100;
-const int WIDTH = 100   ;
+const int WIDTH = 100;
 
 /**
  * Specify location of the start(source) node .
@@ -106,17 +108,18 @@ void reverseLinkedList (genPath** head);
 void reverseLinkedListbt (backTrack_t** head);
 void printGraph(int * graph,int xlim, int ylim);
 int findIndex (backTrack_t* headBT,int x, int y);
-void indexXY(genPath * head,backTrack_t **headBacktrack);
+int indexXY(genPath * head,backTrack_t **headBacktrack);
 int findMinLoc(int dist[],bool pri[],int N);
 int findXYfromIndex (backTrack_t* headBT, int index, int* Xval, int* Yval);
 void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pathX, int *pathY, int pathLength, int terrainLength, int terrainWidth, int Nobstacles);
 int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *pathDistance, int max_parallel_threads, int min_parallel_threads);
 int addToClosedList(listNodeNoDist_t ** closedListX, int startX, int startY);
-int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width,listNodeNoDist_t ** closedListX);
+int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, listNodeNoDist_t ** closedListX, int eliminate);
 int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt);
 int removeElement(uint8_t *arrayList, int pos, int numElements);
 int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width);
 int isXYInClosedList(listNodeNoDist_t ** closedListX,int x,int y);
+
 
 /**
  * Specify obstacles to place on the terrain.
@@ -129,6 +132,8 @@ int main(int argc, char *argv[])
 {
 
     IS_SEQ = atoi(argv[3]);
+
+
     /**
      * Perform basic check to see if start location
      * and end locations fit the dimensions of the
@@ -148,8 +153,6 @@ int main(int argc, char *argv[])
     int MAX_OPEN_LIST_COUNT = 4000;
     int MAX_TMP_LIST_COUNT = MAX_OPEN_LIST_COUNT;
 
-    
-
 
     listNodeNoDist_t * closedListX[MAX_CLOSED_LIST_COUNT];
     for (int i=0; i<MAX_CLOSED_LIST_COUNT; i++){
@@ -161,12 +164,15 @@ int main(int argc, char *argv[])
         closedListX[i]->vertexNum = -1;
         closedListX[i]->next = NULL;
     }
-    
-    
+
+
+    /**
+     * Insert obstacles into the terrain one at a time.
+     */
     for (int iCount = 0; iCount < Nobstacles; iCount++){
         addToClosedList(&closedListX[0],obstaclesX[iCount],obstaclesY[iCount]);
     }
-    
+
     uint8_t openListsX[MAX_OPEN_LIST_COUNT];
     uint8_t openListsY[MAX_OPEN_LIST_COUNT];
     uint8_t openListDists[MAX_OPEN_LIST_COUNT];
@@ -174,10 +180,6 @@ int main(int argc, char *argv[])
     uint8_t tmpListX[MAX_OPEN_LIST_COUNT];
     uint8_t tmpListY[MAX_OPEN_LIST_COUNT];
     uint8_t tmpListDists[MAX_OPEN_LIST_COUNT];
-
-    //uint8_t *closedListX = &closedListsX[0];
-    //uint8_t *closedListY = &closedListsY[0];
-    //int *closedListDist = &closedListDists[0];
 
     int *neighborX = &neighborsX[0];
     int *neighborY = &neighborsY[0];
@@ -200,13 +202,13 @@ int main(int argc, char *argv[])
     if (head == NULL){
         return 1;
     }
+    head->pXval = -1;
+    head->pYval = -1;
+    head->next = NULL;
 
     /** Add start node to closed list */
-    //closedListsX[0] = startX;
-    //closedListsY[0] = startY;
-    //closedListCnt++;
     if (addToClosedList(&closedListX[0],startX,startY) == -1){
-        cout << "Faile to allocate memory for closed list. Terminating program..." << endl;
+        cout << "Failed to allocate memory for closed list. Terminating program..." << endl;
         return -1;
     }
 
@@ -218,31 +220,20 @@ int main(int argc, char *argv[])
      * should be implemented which does not handle such cases
      * this bad.
      */
-
-    Ncount = findNeighbor(startX, startY, 0, neighborX, neighborY, dist , LENGTH, WIDTH,&closedListX[0]);
+    Ncount = findNeighbor(startX, startY, 0, neighborX, neighborY, dist , LENGTH, WIDTH,&closedListX[0],1);
 
 
     /// Manually insert into linked-list for only the start node
-    head->next = NULL;
-    head->pXval = startX;
-    head->pYval = startY;
-    head->numNeighbors = Ncount;
-    memcpy(head->dists,dist,sizeof(int)*Ncount);
-    memcpy(head->x_neighbors,neighborX,sizeof(int)*Ncount);
-    memcpy(head->y_neighbors,neighborY,sizeof(int)*Ncount);
+    insertDataIntoLinkedList (&head,startX,startY,&neighborX[0],&neighborY[0],&dist[0],Ncount);
+
 
     /** Add the present neighbors of start node to closed list **/
     /** This is due to the nature of the algorithm. A much cleaner
      *  code could be written if the algorithm can be modified.
-    */
+     */
     for (int iClosedList = 0; iClosedList < Ncount; iClosedList++){
-    //    closedListsX[closedListCnt] = neighborsX[iClosedList];
-    //    closedListsY[closedListCnt] = neighborsY[iClosedList];
-    //    closedListDists[closedListCnt++] = dists[iClosedList];
         addToClosedList(&closedListX[0],neighborsX[iClosedList],neighborsY[iClosedList]);
-
     }
-
 
     /** Add the present neighbors of start node to open list **/
     /** This is due to the nature of the algorithm. A much cleaner
@@ -258,7 +249,7 @@ int main(int argc, char *argv[])
       * Find unique elements on the openList.
       * Is this useful at all??? Clean up if necessary
       * - According to the review, this is done to sort of
-      *   initialize mopenListcnt/
+      *   initialize mopenListcnt
       */
     mopenListCnt = findUnique(&openListsX[0],&openListsY[0],&openListDists[0],openListCnt);
 
@@ -277,9 +268,6 @@ int main(int argc, char *argv[])
 
         tmpListCnt = 0;
         for (int i=0; i<mopenListCnt; i++){
-
-            ///cout  << openListsX[i] << "," << openListsY[i] << endl;
-
             /**
              * This is used to find the neighbors of a pixel considering the
              * elimination of the nodes in the closed list. The fact that there
@@ -291,12 +279,11 @@ int main(int argc, char *argv[])
              * a part of the neighbors of the current node.
              *
              * The second findNeighborWithoutElimination is used to find neighbors of
-             * every pixel including the ones belonging to the closed list. This is the
-             * one that is required to time the Dijkstra's implementation.
+             * every pixel including the ones belonging to the closed list.
              */
-            neighborCount = findNeighbor(openListsX[i], openListsY[i], 0, neighborX, neighborY, dist , LENGTH, WIDTH,&closedListX[0]);
+            neighborCount = findNeighbor(openListsX[i], openListsY[i], 0, neighborX, neighborY, dist , LENGTH, WIDTH,&closedListX[0],1);
+            tmpNeighborCount = findNeighbor(openListsX[i], openListsY[i], 0, tmpNeighborX, tmpNeighborY, tmpDist, LENGTH, WIDTH,&closedListX[0],0);            
 
-            tmpNeighborCount = findNeighborWithoutElimiation(openListsX[i], openListsY[i], 0, tmpNeighborX, tmpNeighborY, tmpDist, LENGTH, WIDTH);
             if(!insertDataIntoLinkedList (&head,openListsX[i],openListsY[i],&tmpNeighborsX[0],&tmpNeighborsY[0],&tmpDist[0],tmpNeighborCount)){
                 cout << "ERROR: Failed to add item to LinkedList" << endl;
             }
@@ -323,7 +310,11 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            /// Extra care to make code safe
+            /**
+             * Extra care to make code safe - should be removed in future version where openList and closedList
+             * would be implemented as a linked list.
+             */
+
             if ((mopenListCnt>MAX_OPEN_LIST_COUNT) || (tmpListCnt>MAX_TMP_LIST_COUNT) ){
                 cout << "ERROR: closedListCnt = " << closedListCnt << ". Openlist cnt = " << mopenListCnt << ". tmpListcount = " << tmpListCnt << endl;
                 return 1;
@@ -351,7 +342,6 @@ int main(int argc, char *argv[])
                 openListsX[addToOpenList] = tmpListX[addToOpenList];
                 openListsY[addToOpenList] = tmpListY[addToOpenList];
                 openListDists[addToOpenList] = tmpListDists[addToOpenList];
-                //cout << "On iteration " << iterations << " Values are = " << openListsX[addToOpenList] << "," << openListsY[addToOpenList] << "-->" << openListDists[addToOpenList] << endl;
             }
 
             /**
@@ -360,14 +350,11 @@ int main(int argc, char *argv[])
              * Notice that this is being done in the (n+1)th iteration.
              */
             for (int iClosedList = 0; iClosedList < mopenListCnt; iClosedList++){
-                //closedListsX[closedListCnt] = tmpListX[iClosedList];
-                //closedListsY[closedListCnt] = tmpListY[iClosedList];
-                //closedListDists[closedListCnt++] = tmpListDists[iClosedList];
                 addToClosedList(&closedListX[0],tmpListX[iClosedList],tmpListY[iClosedList]);
             }
 
-
         } else {
+
             pathFound = 1;
         }
 
@@ -380,34 +367,35 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-       cout << "List length = " << listLength (head)  << endl;
+       cout << "List length = " << listLength(head)  << endl;
     }
 
 
-
-    /** Reverse the order of linkedlist */
-    reverseLinkedList (&head);
+    /** Reverse the order of linked list */
     int totalNodes = listLength(head);
 
     cout << "Traced end point. " << "Found " <<  totalNodes << " nodes. Starting to backtrack.." << endl;
 
     /**
      * At this point of the code, all nodes from the start to the destination have been
-     * traversed. Backtracking must be done to build the distance matrix.
+     * traversed. Backtracking must be done to build the adjacency matrix.
      */
     backTrack_t * headBacktrack = (backTrack_t*) malloc(sizeof(backTrack_t));
     headBacktrack->next = NULL;
-    headBacktrack->x = head->pXval;
-    headBacktrack->y = head->pYval;
-    headBacktrack->index = 0;
+    headBacktrack->x = -1;
+    headBacktrack->y = -1;
+    headBacktrack->index = -1;
 
     /**
-     *  Index all X and Y locations:
-     *  This is done to map each pixel to
-     *  its neighbors in the adjacency matrix.
+     * Index all X and Y locations:
+     * This is done to map each pixel to
+     * its neighbors in the adjacency matrix.
      */
-    indexXY(head,&headBacktrack);
-    reverseLinkedListbt(&headBacktrack);
+    if(!indexXY(head,&headBacktrack)){
+        cout << "Error in backtracking.." << endl;
+        return 1;
+    }
+    
 
     genPath * current = head;
 
@@ -425,7 +413,7 @@ int main(int argc, char *argv[])
     }
 
 
-    /** Used for adding nodes in adjacency list*/
+    /** Used for adding nodes in adjacency list */
     listNode_t * temp;
 
 
@@ -457,19 +445,15 @@ int main(int argc, char *argv[])
     int index;
     int counter = 0;
     while (current!=NULL){
-        //cout << "Neighbors of " << current->pXval << "," << current->pYval << " is.." << endl;
+
         for (int thisIndex = 0; thisIndex<current->numNeighbors; thisIndex++){
-                //cout << current->x_neighbors[thisIndex] << "," << current->y_neighbors[thisIndex] << endl;
-
                 index = findIndex(headBacktrack,current->x_neighbors[thisIndex],current->y_neighbors[thisIndex]);
-
 
                 /**
                  * Stores the upper half of the distance matrix only.
                  * Also eliminates any element 0 value element.
                  */
                 if ( (index>=0) && (counter<index) && (index > 0) ){
-                         //cout << "counter = " << counter << " index = " << index << " dist = " << current->dists[thisIndex] << endl;
                            temp = adj[counter];
                            if (temp->vertexNum == -1){
                                 temp->next = NULL;
@@ -493,7 +477,6 @@ int main(int argc, char *argv[])
                         /// g[index][counter]
                 }
         }
-        //cout << "counter now is = " << counter << endl;
         counter ++;
         current = current->next;
     }
@@ -533,11 +516,20 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+
+/**
+ * ABSTRACT: This function is used to add elements into the closedList linked
+ *           list.
+ * INPUTS: closedListX - First element of the linked list head array.
+ *         x - Index of the x-th row
+ *         y - Index of the y-th column
+ * OUTPUT: status - Returns the status after adding the element to the linked list.
+ */
 int addToClosedList(listNodeNoDist_t ** closedListX, int x, int y){
 
     listNodeNoDist_t * temp;
     temp = closedListX[x];
-    if (temp->vertexNum == -1){
+    if (temp->vertexNum == -1){ /// First element is inititalized to 1, overwrite now!
         temp->next = NULL;
         temp->vertexNum = y;
     } else {
@@ -600,7 +592,7 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
                     isPath = 1;
                     notPath = 1;
                  }
-                 
+
                  for (int pi=0; pi < Nobstacles; pi++)
                  {
                     if (obstaclesX[pi]==i && obstaclesY[pi]==j){
@@ -636,27 +628,56 @@ void printPath (int startLocX, int startLocY, int endLocX, int endLocY, int *pat
  *           to build the path after traversing nodes till the
  *           destination.
  */
-void indexXY(genPath * head,backTrack_t **headBacktrack){
-    int incrementer = 1;
-    head = head->next;
-    while(head->next!=NULL){
-            backTrack_t* newNode;
-            newNode = (backTrack_t*) malloc(sizeof(backTrack_t));
-            newNode->next = *headBacktrack;
+int indexXY(genPath * head,backTrack_t **headBacktrack){
+    int incrementer = 0;
+    backTrack_t* temp ;    
+    
+    /// Adding n-1 elements of genPath into backTrack_t
+    while(head->next != NULL){        
+        temp = *headBacktrack;
+        if ((temp->x == -1) && (temp->y== -1) && (temp->index == -1)){
+            temp->x = head->pXval;
+            temp->y = head->pYval;
+            temp->next = NULL;
+            temp->index = incrementer++;
+        } else {
+            while (temp->next!=NULL){
+                temp = temp->next;
+            } 
+            backTrack_t* newNode = (backTrack_t*) malloc(sizeof(backTrack_t));
+            if (newNode==NULL){
+                cout << "Failed to create new node in indexXY..." << endl;
+                return 0;
+            }   
+   
             newNode->x = head->pXval;
             newNode->y = head->pYval;
-            newNode->index = incrementer++;
-            *headBacktrack = newNode;
-            head = head->next;
+            newNode->index = incrementer++;            
+            newNode->next = NULL;
+            temp->next = newNode;
+        }
+        head = head->next;
     }
-
+    
+    /// Adding the value of the n-th element of the linked list.
+    temp = *headBacktrack;
     backTrack_t* newNode;
     newNode = (backTrack_t*) malloc(sizeof(backTrack_t));
-    newNode->next = *headBacktrack;
+    if (newNode==NULL){
+        cout << "Failed to create new node in indexXY..." << endl;
+        return 0;
+    }   
+    while (temp->next!=NULL){
+        temp = temp->next;
+    }    
     newNode->x = head->pXval;
     newNode->y = head->pYval;
-    newNode->index = incrementer++;
-    *headBacktrack = newNode;
+    newNode->index = incrementer++;            
+    newNode->next = NULL;
+    temp->next = newNode;
+ 
+    return 1;
+ 
 }
 
 
@@ -696,6 +717,7 @@ int findIndex (backTrack_t* headBT,int x, int y){
 /**
  * C++ templates have to be used here. Too lazy at the moment.
  */
+
 int listLength (genPath* head){
     genPath * current = head;
     int count =0;
@@ -724,57 +746,41 @@ int listLengthbt (backTrack_t* head){
  *          2-D terrain.
  */
 int insertDataIntoLinkedList (genPath** head, int xVal, int yVal, int *neighborX, int * neighborY, int *dist, int neighborCount){
-    genPath* newNode;
-    newNode = (genPath*) malloc(sizeof(genPath));
+    
+    genPath* temp;
+    temp = *head;
 
-    if (!newNode){
-        cout << "Memory error!" << endl;
-        return 0;
+    if (temp->pXval == -1 && temp->pYval==-1){ 
+        /// This is the first node that is being inserted.
+        temp->pXval = xVal;
+        temp->pYval = yVal;
+        temp->numNeighbors = neighborCount;
+        memcpy(temp->dists,dist,sizeof(int)*neighborCount);
+        memcpy(temp->x_neighbors,neighborX,sizeof(int)*neighborCount);
+        memcpy(temp->y_neighbors,neighborY,sizeof(int)*neighborCount);
+        temp->next = NULL;
+    } else {
+        while(temp->next!=NULL){
+            temp = temp->next;
+        }
+        genPath * newNode = (genPath*) malloc(sizeof(genPath));
+        if(newNode == NULL){
+            cout << "Memory error. Couldn't create new nodes in genPath.. terminating..." << endl;
+            return -1;
+        }
+        newNode->next = NULL;
+        newNode->pXval = xVal;
+        newNode->pYval = yVal;
+        newNode->numNeighbors = neighborCount;
+        memcpy(newNode->dists,dist,sizeof(int)*neighborCount);
+        memcpy(newNode->x_neighbors,neighborX,sizeof(int)*neighborCount);
+        memcpy(newNode->y_neighbors,neighborY,sizeof(int)*neighborCount);
+        temp->next = newNode;
     }
-
-    newNode->next = *head;
-    newNode->pXval = xVal;
-    newNode->pYval = yVal;
-    newNode->numNeighbors = neighborCount;
-    memcpy(newNode->dists,dist,sizeof(int)*neighborCount);
-    memcpy(newNode->x_neighbors,neighborX,sizeof(int)*neighborCount);
-    memcpy(newNode->y_neighbors,neighborY,sizeof(int)*neighborCount);
-    *head = newNode;
+    
     return 1;
 }
 
-/**
- * C++ templates have to be used here. Too lazy at the moment.
- */
-void reverseLinkedList (genPath** head){
-    genPath* currentNode = *head;
-    genPath* nextNode = NULL;
-    genPath* prevNode = NULL;
-
-    while(currentNode!=NULL){
-		nextNode = currentNode->next;
-		currentNode->next = prevNode;
-		prevNode = currentNode;
-		currentNode = nextNode;
-	}
-	*head = prevNode;
-    return;
-}
-
-void reverseLinkedListbt (backTrack_t** head){
-    backTrack_t* currentNode = *head;
-    backTrack_t* nextNode = NULL;
-    backTrack_t* prevNode = NULL;
-
-    while(currentNode!=NULL){
-		nextNode = currentNode->next;
-		currentNode->next = prevNode;
-		prevNode = currentNode;
-		currentNode = nextNode;
-	}
-	*head = prevNode;
-    return;
-}
 
 /**
  * ABSTRACT : This function is used to find a unique set
@@ -799,8 +805,6 @@ int findUnique(uint8_t * listX,uint8_t * listY, uint8_t *distXY, int openListcnt
             }
         }
     }
-    //cout << "number of duplicates found = " << duplicate << endl;
-
     int tmpOpenListCountX=openListcnt;
     int tmpOpenListCountY=openListcnt;
     int tmpDistCount = openListcnt;
@@ -854,19 +858,21 @@ int removeElement(uint8_t *arrayList, int pos, int numElements){
   *          dist - An 8 element empty array.
   *          length - Length of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
   *          width - Width of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
-  *          closedListX - X indices of the elements of the closed list.
-  *          closedListY - Y indices of the elements of the closed list.
-  *          NclosedList - Number of element sin the closed list.
+  *          closedListX - Address of the first element of the linked list head array
+  *          eliminate - Determines whether to eliminate regions of closed list in the neighbors or not
   *
   * OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
   */
-int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, listNodeNoDist_t ** closedListX){
+int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width, listNodeNoDist_t ** closedListX, int eliminate){
 
     int validX[3],validY[3];
     int xVals[3] = {x-1,x,x+1};
     int yVals[3] = {y-1,y,y+1};
 
-
+    /**
+     * Check if the computed neighbors are within the limits
+     * of the terrain.
+     */
     if (xVals[0] < 0 || xVals[0] > width){
         validX[0] = 0;
     } else {
@@ -895,21 +901,34 @@ int findNeighbor(int x, int y, int distToXY, int *neighborX, int*neighborY, int 
     validY[1] = 1;
 
     int Ncount=0;
-    int dontConsider=0;
-    for (int i = 0; i < 3; i++){
-        for (int j = 0; j < 3; j++){
-            if (validX[i] && validY[j] && !(i==1&&j==1)){
-                dontConsider = isXYInClosedList(closedListX,xVals[i],yVals[j]);
 
-
-//                dontConsider = 0;
-//                for (int k=0 ;k < NclosedList; k++){
-//                    if (xVals[i] == closedListX[k] && yVals[j] == closedListY[k]){
-//                        dontConsider = 1;
-//                    }
-//                }
-
-                if (!dontConsider){
+    if (eliminate){
+        /**
+         * Don't include the nodes already present in
+         * the closed list.
+         */
+        int dontConsider=0;
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 3; j++){
+                if (validX[i] && validY[j] && !(i==1&&j==1)){
+                    dontConsider = isXYInClosedList(closedListX,xVals[i],yVals[j]);
+                    if (!dontConsider){
+                        neighborX[Ncount] = xVals[i];
+                        neighborY[Ncount] = yVals[j];
+                        if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
+                            dist[Ncount] = distToXY + 14;
+                        } else {
+                            dist[Ncount] = distToXY + 10;
+                        }
+                        Ncount++;
+                    }
+                }
+            }
+        }
+    } else {
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 3; j++){
+                if (validX[i] && validY[j] && !(i==1&&j==1)){
                     neighborX[Ncount] = xVals[i];
                     neighborY[Ncount] = yVals[j];
                     if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
@@ -940,8 +959,10 @@ int isXYInClosedList(listNodeNoDist_t ** closedListX,int x,int y){
         temp = temp->next;
     }
 
-    /// Since the n-th index contains valid data,
-    ///  check for the nth index as well.
+    /**
+     * Since the n-th index contains valid data,
+     * check for the nth index as well.
+     */
     if (temp->vertexNum == y)
     {
             return 1;
@@ -953,79 +974,6 @@ int isXYInClosedList(listNodeNoDist_t ** closedListX,int x,int y){
      * of the data structure.
      */
     return 0;
-}
-
-
-
-/**
-  * ABSTRACT: This function is similar to the above implementation but it
-  *           does not remove elements that are already present in the closed list.
-  *
-  * INPUTS: x - Pixel x location in the grid
-  *          y - Pixel y location in the grid
-  *          neighborX - An empty 8 element array to store the X indices neighboring pixels.
-  *          neighborY - An empty 8 element array to store the Y indices of neighboring pixels.
-  *          dist - An 8 element empty array.
-  *          length - Length of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
-  *          width - Width of the entire grid. This is used to eliminate neighbor pixels beyond the grid size.
-  *          closedListX - X indices of the elements of the closed list.
-  *          closedListY - Y indices of the elements of the closed list.
-  *          NclosedList - Number of element sin the closed list.
-  *
-  * OUTPUTS: Ncount - Number of valid neighbors for the given pixel.
-  * NOTE: Modify findNeighbor function to perform this operation. Too lazy to do it now!
-  */
-int findNeighborWithoutElimiation(int x, int y, int distToXY, int *neighborX, int*neighborY, int *dist, int length, int width){
-
-    int validX[3],validY[3];
-    int xVals[3] = {x-1,x,x+1};
-    int yVals[3] = {y-1,y,y+1};
-
-
-    if (xVals[0] < 0 || xVals[0] > width){
-        validX[0] = 0;
-    } else {
-        validX[0] = 1;
-    }
-
-    if (xVals[2] < 0 || xVals[2] > width){
-        validX[2] = 0;
-    } else {
-        validX[2] = 1;
-    }
-
-    if (yVals[0] < 0 || yVals[0] > length){
-        validY[0] = 0;
-    } else {
-        validY[0] = 1;
-    }
-
-    if (yVals[2] < 0 || yVals[2] > length){
-        validY[2] = 0;
-    } else {
-        validY[2] = 1;
-    }
-
-    validX[1] = 1;
-    validY[1] = 1;
-
-    int Ncount=0;
-    for (int i = 0; i < 3; i++){
-        for (int j = 0; j < 3; j++){
-            if (validX[i] && validY[j] && !(i==1&&j==1)){
-                neighborX[Ncount] = xVals[i];
-                neighborY[Ncount] = yVals[j];
-                if ((i==0 && j==0) || (i==0&&j==2) || (i==2&&j==0) || (i==2&&j==2)){
-                    dist[Ncount] = distToXY + 14;
-                } else {
-                    dist[Ncount] = distToXY + 10;
-                }
-                Ncount++;
-            }
-        }
-    }
-
-    return Ncount;
 }
 
 /**
@@ -1110,7 +1058,7 @@ inline int findNValEqU(int minval, int dist[],bool pri[],int N){
     return count;
 }
 
-/** 
+/**
  * ABSTRACT : Given an adjacency matrix, this function computes the shorest path from the
  *            first node to the last node in the list.
  * ERROR CODE : retunrs -1
@@ -1124,8 +1072,8 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
     bool pri[N];
 
     int path[N];
-    
-    
+
+
     //uint8_t g[N][N];
     //memset( g, 0, N*N*sizeof(uint8_t) );
     struct timeval start_time, stop_time, elapsed_time,t1,t2,t3,t4,t5,t6;  // timers
@@ -1140,24 +1088,24 @@ int findShortestDijkstra(listNode_t** vertices, int N, int *shortestPath, int *p
         pri[i] = false;
         path[i] = 0;
     }
-    }   
+    }
 
     /// Make distance from source to source as 0
     dist[0] = 0;
     path[0] = -1; /// Make source to be -1
     U[0] = false; /// Source is settled node
-    
-    
+
+
     int u;
     int thisval=0;
-    double allTime1=0; 
-    int debug_counter = 0;    
+    double allTime1=0;
+    int debug_counter = 0;
     int maxNcount = 0;
-    /// Path finding..    
+    /// Path finding..
     double allTime0=0;
-    
+
 if (IS_SEQ==1){
-   
+
     int threadedCount = 0;
     int minval = -1;
     int nCount = -1;
@@ -1169,41 +1117,41 @@ if (IS_SEQ==1){
         cout <<  "max_parallel_threads = " << max_parallel_threads << "is less than min_parallel_threads = " << min_parallel_threads << " , terminating ... " << endl;
         return -1;
     }
-    
+
     int isThreaded = 0;
     omp_set_num_threads(max_parallel_threads);
     cout << "I can run on a maximum of " <<  omp_get_max_threads()  << " threads." << endl;
     //cout << "I am currently running on device " << omp_get_default_device() << "." << endl;
     cout << "I can run on " << omp_get_num_procs() << " number of cores. " << endl;
- 
+
     for (i = 0 ; i < N ; i++){
         letsParallellize[i] = false;
     }
-    
-              
+
+
     int thisCountThread = 0;
 
     gettimeofday(&start_time,NULL); // Unix timer
-    
+
     while (minval < INT32_MAX){
 
-        debug_counter++;        
-        
-        u = findMinLoc(dist,pri,N,&minval);         
-        
-	    gettimeofday(&t1,NULL);  
-  
+        debug_counter++;
+
+        u = findMinLoc(dist,pri,N,&minval);
+
+	    gettimeofday(&t1,NULL);
+
         nCount = findNValEqU(u,dist,pri,N);
-	
+
 	    gettimeofday(&t2,NULL);
-	    
+
         timersub(&t2, &t1, &t3); // Unix time subtract
 	    allTime0 +=  t3.tv_sec+t3.tv_usec/1000000.0;
-	    
-	    
+
+
 	    if (nCount > maxNcount) maxNcount = nCount;
-	    
-	
+
+
 //	cout << "time taken for findNValEqU = " << t3.tv_sec+t3.tv_usec/1000000.0 << endl;
 #if 0
         if (nCount > max_parallel_threads){
@@ -1211,37 +1159,37 @@ if (IS_SEQ==1){
                 cout << "Set max_parallel_threads to be greater than " << nCount << endl;
                 return -1;
         }
-#endif         
-        
+#endif
+
         /// nCount can be used to thread or not thread!
-        
+
         /**
-         * Accumulate threads that can be run in parallel. 
+         * Accumulate threads that can be run in parallel.
          * These would be the threads that have their distances
          * equal to the value of minval (minimum)
-         *   
-         * Threading is performed only when 
+         *
+         * Threading is performed only when
          * the number of min values is between
          * 100(min_parallel_threads) - 200 (max_parallel_threads).
          */
-         
-         if (nCount > min_parallel_threads) { 
+
+         if (nCount > min_parallel_threads) {
              //cout << "nCount = " << nCount << endl;
-             thisCountThread = 0;                      
+             thisCountThread = 0;
              memset(&letsParallellize[0],-1,sizeof(int)*N);
              #pragma omp parallel for
              for (int thisThread = 0 ; thisThread < N ; thisThread++){
-                //letsParallellize[thisThread] = -1;                
-                if ((!pri[thisThread]) && (minval == dist[thisThread])){        // && (thisCountThread < max_parallel_threads)   
+                //letsParallellize[thisThread] = -1;
+                if ((!pri[thisThread]) && (minval == dist[thisThread])){        // && (thisCountThread < max_parallel_threads)
                     #pragma omp critical
-                    {   
+                    {
                     letsParallellize[thisCountThread] = thisThread;
-                    pri[thisThread] = true; // Settle the node 
+                    pri[thisThread] = true; // Settle the node
                     thisCountThread++;
-                    }                   
-                }                
-             }             
-             threadedCount ++;  
+                    }
+                }
+             }
+             threadedCount ++;
              isThreaded = 1;
           } else {
              pri[u] = true; // Why not settle the node here itself?
@@ -1251,41 +1199,41 @@ if (IS_SEQ==1){
           //cout << "isThreaded =" << isThreaded << endl;
           //cout << "Time taken to compute overhead = " << t6.tv_sec+t6.tv_usec/1000000.0 << endl;
 
-         
+
          /**
-          * From the potential nodes that can be parallelized, 
+          * From the potential nodes that can be parallelized,
           * the dist values of nodes with the min value are
           * spawned in parallel.
           */
-          
+
          /// Thread-ids(tid) have to be taken advantage of here,
          /// so I would have tid be the index of the array containing
          /// the n number of threads
          /// if (thisNodeCanThread[tid] == true) then start parallel region.
          /// The parallel region that I am speaking about here is going
          /// to perform the acceleration on the relaxation kernel.
-          
-          
+
+
           /// Can a parallel region be started here?
           /*
            * A total of T-number of threads have to be spawned for
            * n number of nodes (n == T) having minimum distance value
-           * at each iteration. 
+           * at each iteration.
            */
            int tid;
            //cout << "Threading is active.. " << endl;
-           omp_set_dynamic(0); 
+           omp_set_dynamic(0);
            omp_set_num_threads(thisCountThread-1);
 
-           
+
            gettimeofday(&t4,NULL);
-           if (isThreaded) {  
-                            
+           if (isThreaded) {
+
                 #pragma omp parallel private(thisval,j,tid)
                 {
                     tid = omp_get_thread_num();
-                             
-                    //if (letsParallellize[tid]>0) {                     
+
+                    //if (letsParallellize[tid]>0) {
                         //cout << "Thread at tid = " << tid << " -> " << letsParallellize[tid] << endl;
                         //#pragma omp parallel for private(thisval)
                         for (j=0;j<N;j++){
@@ -1297,20 +1245,20 @@ if (IS_SEQ==1){
                                 {
                                     //cout << "Inside critical!" << endl;
                                     dist[j] = thisval + dist[letsParallellize[tid]];
-                                    path[j] = letsParallellize[tid];                                                   
+                                    path[j] = letsParallellize[tid];
                                 }
 
-                            }       
+                            }
                             }
                         }
                     // }
                  }
-                 
+
             } else {
-                
-                for (j = 0; j < N ;j++){                
-                    thisval = findValFromGraph(vertices,u,j);	
-                    //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
+
+                for (j = 0; j < N ;j++){
+                    thisval = findValFromGraph(vertices,u,j);
+                    //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;
                     if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
                         //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                         /// update queue
@@ -1320,26 +1268,26 @@ if (IS_SEQ==1){
                     }
                 }
             }
-            gettimeofday(&t5,NULL);                    
+            gettimeofday(&t5,NULL);
             timersub(&t5, &t4, &t6); // Unix time subtract
             allTime1 += t6.tv_sec+t6.tv_usec/1000000.0;
-            	                  
+
     }
 
- 
+
     cout << "****************** Ran iParallel code ****************** " << endl;
     cout << "Code entered parallel region " << threadedCount << " times." << endl;
 } else {
-        
+
     int dummy;
     gettimeofday(&start_time,NULL); // Unix timer
     for (i = 0 ; i < N-1 ; i++){
         u = findMinLoc(dist,pri,N,&dummy);
         pri[u] = true;
-        
+
         for (j = 0; j < N ;j++){
-                thisval = findValFromGraph(vertices,u,j);              
-                //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;       
+                thisval = findValFromGraph(vertices,u,j);
+                //cout << "u =" << u << " j = " << j << "thisVal = " << thisval << endl;
                 if ((thisval) && (thisval + dist[u] < dist[j]) && (dist[u]!=INT32_MAX) && (!pri[j])){
                 //if (g[u][j] && g[u][j] + dist[u] < dist[j] && dist[u]!=INT_MAX && !pri[j]){
                     /// update queue
@@ -1349,24 +1297,24 @@ if (IS_SEQ==1){
                 }
         }
         // cout << "On iteration: " << i << "/" << N-1 << endl;
-           
+
 
     }
     cout << "****************** Ran sequential code ****************** " << endl;
-    
+
 }
-  
+
     gettimeofday(&stop_time,NULL);
-   
+
     cout << "Debug counter (time - ignore) = " <<  debug_counter << ". Value of N-1 = " << N-1 << endl;
     cout << "All time 0= " << allTime0 << endl;
     cout << "All time 1= " << allTime1 << endl;
-    cout << "MAX nCount (time - ignore)=  " << maxNcount << endl;   
-       
+    cout << "MAX nCount (time - ignore)=  " << maxNcount << endl;
+
     timersub(&stop_time, &start_time, &elapsed_time); // Unix time subtract
     printf("Total time was %f seconds.\n", elapsed_time.tv_sec+elapsed_time.tv_usec/1000000.0);
-    
-    
+
+
     //for (i = 0 ; i < N ; i++){
         //cout << dist[i] <<endl;
     //}
